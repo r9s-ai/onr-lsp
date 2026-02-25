@@ -1,5 +1,5 @@
 # onr-lsp
-Language Server Protocol (LSP) implementation for OpenNextRouter (.conf) configuration files – autocompletion, diagnostics, hover docs for ONR DSL.
+Language Server Protocol (LSP) implementation for OpenNextRouter (.conf) configuration files – autocompletion, diagnostics, hover docs, and syntax highlighting for ONR DSL.
 
 ## Current Features
 
@@ -8,6 +8,9 @@ Language Server Protocol (LSP) implementation for OpenNextRouter (.conf) configu
   - `resp_map <mode>`
   - `sse_parse <mode>`
 - Hover docs for common directives (`provider`, `match`, `req_map`, `resp_map`, `sse_parse`, etc.)
+- Syntax Highlight:
+  - TextMate grammar (`vscode/syntaxes/onr.tmLanguage.json`) for immediate lexical highlight
+  - LSP semantic tokens (`textDocument/semanticTokens/full`) for context-aware highlighting
 - Diagnostics:
   - missing `}`
   - unknown directive
@@ -25,9 +28,16 @@ go build -o bin/onr-lsp ./cmd/onr-lsp
 Client project is under `vscode/`.
 
 ```bash
+make vscode-generate-syntax
 cd vscode
 npm install
 npm run compile
+```
+
+`vscode/syntaxes/onr.tmLanguage.json` is generated from `onr-core/pkg/dslconfig/metadata.go` via:
+
+```bash
+make vscode-generate-syntax
 ```
 
 Then run Extension Development Host in VSCode (`F5`) and set:

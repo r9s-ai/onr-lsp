@@ -67,9 +67,10 @@ type serverInfo struct {
 }
 
 type serverCapabilities struct {
-	TextDocumentSync   int                 `json:"textDocumentSync"`
-	CompletionProvider *completionProvider `json:"completionProvider,omitempty"`
-	HoverProvider      bool                `json:"hoverProvider"`
+	TextDocumentSync       int                    `json:"textDocumentSync"`
+	CompletionProvider     *completionProvider    `json:"completionProvider,omitempty"`
+	HoverProvider          bool                   `json:"hoverProvider"`
+	SemanticTokensProvider *semanticTokensOptions `json:"semanticTokensProvider,omitempty"`
 }
 
 type completionProvider struct {
@@ -207,6 +208,8 @@ func (s *Server) handle(msg inboundMessage) error {
 		return s.handleCompletion(msg.ID, msg.Params)
 	case "textDocument/hover":
 		return s.handleHover(msg.ID, msg.Params)
+	case "textDocument/semanticTokens/full":
+		return s.handleSemanticTokensFull(msg.ID, msg.Params)
 	default:
 		if msg.ID != nil {
 			return s.reply(msg.ID, nil)
@@ -224,6 +227,13 @@ func (s *Server) handleInitialize(id *json.RawMessage) error {
 				TriggerCharacters: []string{" ", "_"},
 			},
 			HoverProvider: true,
+			SemanticTokensProvider: &semanticTokensOptions{
+				Legend: semanticTokensLegend{
+					TokenTypes:     semanticTokenLegendTypes,
+					TokenModifiers: []string{},
+				},
+				Full: true,
+			},
 		},
 		ServerInfo: serverInfo{
 			Name:    "onr-lsp",
@@ -266,6 +276,15 @@ func (s *Server) handleHover(id *json.RawMessage, params json.RawMessage) error 
 		Range: &rng,
 	}
 	return s.reply(id, h)
+}
+
+func (s *Server) handleSemanticTokensFull(id *json.RawMessage, params json.RawMessage) error {
+	var p semanticTokensParams
+	if err := json.Unmarshal(params, &p); err != nil {
+		return s.replyError(id, -32602, "invalid params for semantic tokens")
+	}
+	text := s.docs[p.TextDocument.URI]
+	return s.reply(id, semanticTokensFull(text))
 }
 
 func (s *Server) publishDiagnostics(uri string) error {

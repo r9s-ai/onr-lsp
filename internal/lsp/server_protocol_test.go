@@ -159,6 +159,101 @@ func TestHandle_InvalidCompletionParamsReplyError(t *testing.T) {
 	}
 }
 
+func TestHandle_InitializeIncludesSemanticTokensCapability(t *testing.T) {
+	var out bytes.Buffer
+	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))
+
+	rawID := json.RawMessage("12")
+	if err := s.handle(inboundMessage{
+		JSONRPC: "2.0",
+		ID:      &rawID,
+		Method:  "initialize",
+		Params:  json.RawMessage(`{}`),
+	}); err != nil {
+		t.Fatalf("handle initialize: %v", err)
+	}
+
+	msgs := readAllLSPMessages(t, out.Bytes())
+	if len(msgs) != 1 {
+		t.Fatalf("expected one initialize response, got %d", len(msgs))
+	}
+	result, ok := msgs[0]["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected result object, got: %#v", msgs[0]["result"])
+	}
+	caps, ok := result["capabilities"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected capabilities object, got: %#v", result["capabilities"])
+	}
+	if _, ok := caps["semanticTokensProvider"]; !ok {
+		t.Fatalf("expected semanticTokensProvider in capabilities, got: %#v", caps)
+	}
+}
+
+func TestHandle_SemanticTokensFullReturnsData(t *testing.T) {
+	var out bytes.Buffer
+	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))
+	uri := "file:///tmp/tokens.conf"
+	s.docs[uri] = "provider \"openai\" { defaults { request { req_map openai_chat_to_openai_responses; } } }"
+
+	params, err := json.Marshal(semanticTokensParams{
+		TextDocument: textDocumentIdentifier{URI: uri},
+	})
+	if err != nil {
+		t.Fatalf("marshal semantic token params: %v", err)
+	}
+	rawID := json.RawMessage("13")
+	if err := s.handle(inboundMessage{
+		JSONRPC: "2.0",
+		ID:      &rawID,
+		Method:  "textDocument/semanticTokens/full",
+		Params:  params,
+	}); err != nil {
+		t.Fatalf("handle semantic tokens: %v", err)
+	}
+
+	msgs := readAllLSPMessages(t, out.Bytes())
+	if len(msgs) != 1 {
+		t.Fatalf("expected one semantic tokens response, got %d", len(msgs))
+	}
+	if msgs[0]["error"] != nil {
+		t.Fatalf("expected semantic tokens result, got error: %#v", msgs[0]["error"])
+	}
+	result, ok := msgs[0]["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected result object, got: %#v", msgs[0]["result"])
+	}
+	data, ok := result["data"].([]any)
+	if !ok {
+		t.Fatalf("expected data array, got: %#v", result["data"])
+	}
+	if len(data) == 0 {
+		t.Fatalf("expected non-empty semantic token data")
+	}
+}
+
+func TestHandle_InvalidSemanticTokensParamsReplyError(t *testing.T) {
+	var out bytes.Buffer
+	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))
+	rawID := json.RawMessage("14")
+	if err := s.handle(inboundMessage{
+		JSONRPC: "2.0",
+		ID:      &rawID,
+		Method:  "textDocument/semanticTokens/full",
+		Params:  json.RawMessage(`{"bad":`),
+	}); err != nil {
+		t.Fatalf("handle semantic tokens should not return error: %v", err)
+	}
+
+	msgs := readAllLSPMessages(t, out.Bytes())
+	if len(msgs) != 1 {
+		t.Fatalf("expected one response, got %d", len(msgs))
+	}
+	if msgs[0]["error"] == nil {
+		t.Fatalf("expected error response for invalid semantic tokens params")
+	}
+}
+
 func writeLSPMessage(w *bytes.Buffer, payload any) {
 	b, _ := json.Marshal(payload)
 	_, _ = w.WriteString(fmt.Sprintf("Content-Length: %d\r\n\r\n", len(b)))

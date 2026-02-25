@@ -2,7 +2,7 @@
   "name": "onr-dsl",
   "displayName": "ONR DSL",
   "description": "VSCode client for ONR DSL Language Server",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "publisher": "r9s-ai",
   "repository": {
     "type": "git",
@@ -27,6 +27,13 @@
           ".conf"
         ],
         "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "onr-dsl",
+        "scopeName": "source.onr-dsl",
+        "path": "./syntaxes/onr.tmLanguage.json"
       }
     ],
     "configuration": {

@@ -1,5 +1,5 @@
 .PHONY: help build run test fmt tidy clean \
-	vscode-install vscode-compile vscode-watch vscode-package vscode-release-check vscode-bundle-bins
+	vscode-install vscode-compile vscode-watch vscode-package vscode-release-check vscode-bundle-bins vscode-generate-syntax
 
 BIN_DIR := bin
 LSP_BIN := $(BIN_DIR)/onr-lsp
@@ -40,7 +40,10 @@ clean: ## Remove build artifacts
 vscode-install: ## Install VSCode client dependencies
 	cd vscode && npm install
 
-vscode-compile: ## Compile VSCode client extension
+vscode-generate-syntax: ## Generate TextMate grammar from onr-core directive metadata
+	go run ./cmd/onr-tmgen -output vscode/syntaxes/onr.tmLanguage.json
+
+vscode-compile: vscode-generate-syntax ## Compile VSCode client extension
 	cd vscode && npm run compile
 
 vscode-watch: ## Watch-compile VSCode client extension
@@ -56,10 +59,10 @@ vscode-bundle-bins: ## Build bundled onr-lsp binaries for VSCode extension
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o vscode/bin/win32-x64/onr-lsp.exe ./cmd/onr-lsp
 	CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -trimpath -ldflags "$(LDFLAGS)" -o vscode/bin/win32-arm64/onr-lsp.exe ./cmd/onr-lsp
 
-vscode-package: vscode-bundle-bins ## Package VSCode client extension (.vsix)
+vscode-package: vscode-generate-syntax vscode-bundle-bins ## Package VSCode client extension (.vsix)
 	cd vscode && npm run package
 
-vscode-release-check: vscode-bundle-bins ## Release pre-check for VSCode extension (compile + package listing)
+vscode-release-check: vscode-generate-syntax vscode-bundle-bins ## Release pre-check for VSCode extension (compile + package listing)
 	cd vscode && npm run compile
 	cd vscode && npx vsce ls --tree
 	cd vscode && npm run package

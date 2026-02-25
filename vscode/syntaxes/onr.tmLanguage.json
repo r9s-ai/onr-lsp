@@ -1,0 +1,112 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "ONR DSL",
+  "scopeName": "source.onr-dsl",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#provider-name"
+    },
+    {
+      "include": "#mode-value"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#directives"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.onr-dsl",
+          "match": "#.*$"
+        },
+        {
+          "name": "comment.line.double-slash.onr-dsl",
+          "match": "//.*$"
+        }
+      ]
+    },
+    "directives": {
+      "patterns": [
+        {
+          "name": "support.type.property-name.onr-dsl",
+          "match": "\\b(?:auth_bearer|auth_header_key|auth_oauth_bearer|balance_mode|balance_path|balance_unit|base_url|cache_read_tokens|cache_read_tokens_path|cache_write_tokens|cache_write_tokens_path|del_header|del_query|error_map|finish_reason_extract|finish_reason_path|id_allow_regex|id_path|id_regex|input_tokens|input_tokens_path|json_del|json_rename|json_set|json_set_if_absent|method|model_map|model_map_default|models_mode|oauth_audience|oauth_client_id|oauth_client_secret|oauth_content_type|oauth_expires_in_path|oauth_fallback_ttl_sec|oauth_form|oauth_method|oauth_mode|oauth_refresh_skew_sec|oauth_refresh_token|oauth_scope|oauth_timeout_ms|oauth_token_path|oauth_token_type_path|oauth_token_url|output_tokens|output_tokens_path|path|req_map|resp_map|resp_passthrough|set_header|set_path|set_query|sse_json_del_if|sse_parse|subscription_path|total_tokens|usage_extract|usage_path|used|used_path)\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.onr-dsl",
+          "match": "\\b(?:syntax|provider|defaults|match|upstream_config|upstream|auth|request|response|error|metrics|balance|models|true|false)\\b"
+        }
+      ]
+    },
+    "mode-value": {
+      "patterns": [
+        {
+          "name": "constant.other.mode.onr-dsl",
+          "match": "(?<=\\b(?:balance_mode|error_map|finish_reason_extract|models_mode|oauth_mode|req_map|resp_map|sse_parse|usage_extract)\\s+)[A-Za-z_][A-Za-z0-9_\\.-]*"
+        },
+        {
+          "name": "constant.other.mode.onr-dsl",
+          "match": "(?<=\\b(?:balance_mode|error_map|finish_reason_extract|models_mode|oauth_mode|req_map|resp_map|sse_parse|usage_extract)\\s+)\"[^\"\\n]*\""
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.onr-dsl",
+          "match": "\\b\\d+(?:\\.\\d+)?\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.onr-dsl",
+          "match": "[=;{}]"
+        }
+      ]
+    },
+    "provider-name": {
+      "patterns": [
+        {
+          "name": "entity.name.namespace.onr-dsl",
+          "match": "(?<=\\bprovider\\s+)\"[^\"\\n]*\""
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.onr-dsl",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.onr-dsl",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
