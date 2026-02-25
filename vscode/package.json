@@ -1,0 +1,60 @@
+{
+  "name": "onr-dsl",
+  "displayName": "ONR DSL",
+  "description": "VSCode client for ONR DSL Language Server",
+  "version": "0.1.0",
+  "publisher": "r9s-ai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/r9s-ai/onr-lsp.git"
+  },
+  "engines": {
+    "vscode": "^1.89.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:onr-dsl"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "onr-dsl",
+        "aliases": [
+          "ONR DSL",
+          "onr-dsl"
+        ],
+        "extensions": [
+          ".conf"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "configuration": {
+      "title": "ONR LSP",
+      "properties": {
+        "onrLsp.serverPath": {
+          "type": "string",
+          "default": "onr-lsp",
+          "description": "Path to onr-lsp server binary."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -w -p .",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.89.0",
+    "typescript": "^5.4.5",
+    "@vscode/vsce": "^3.2.2"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  }
+}

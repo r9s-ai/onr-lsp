@@ -1,0 +1,14 @@
+# Go
+bin/
+*.test
+*.out
+coverage.out
+
+# VSCode extension
+vscode/node_modules/
+vscode/out/
+vscode/*.vsix
+.vscode-test/
+
+# OS
+.DS_Store

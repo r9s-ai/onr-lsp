@@ -1,0 +1,14 @@
+# Dev and VCS
+.git/**
+.github/**
+.gitignore
+.vscode/**
+
+# Source-only files (compiled JS in out/ is packaged)
+src/**
+tsconfig.json
+package-lock.json
+
+# Local artifacts
+node_modules/.bin/**
+*.vsix
