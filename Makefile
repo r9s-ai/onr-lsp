@@ -1,5 +1,5 @@
 .PHONY: help build run test fmt tidy clean \
-	vscode-install vscode-compile vscode-watch vscode-package vscode-release-check vscode-bundle-bins vscode-generate-syntax
+	vscode-install vscode-compile vscode-watch vscode-package vscode-release-check vscode-bundle-bins vscode-generate-syntax vscode-install-vsix
 
 BIN_DIR := bin
 LSP_BIN := $(BIN_DIR)/onr-lsp
@@ -10,6 +10,7 @@ LDFLAGS := -s -w \
 	-X main.Version=$(VERSION) \
 	-X main.Commit=$(COMMIT) \
 	-X main.BuildDate=$(BUILD_DATE)
+VSIX_NAME := $(shell cd vscode && node -p "require('./package.json').name + '-' + require('./package.json').version + '.vsix'")
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -61,6 +62,9 @@ vscode-bundle-bins: ## Build bundled onr-lsp binaries for VSCode extension
 
 vscode-package: vscode-generate-syntax vscode-bundle-bins ## Package VSCode client extension (.vsix)
 	cd vscode && npm run package
+
+vscode-install-vsix: vscode-package ## Package and install VSIX into VSCode
+	code --install-extension vscode/$(VSIX_NAME) --force
 
 vscode-release-check: vscode-generate-syntax vscode-bundle-bins ## Release pre-check for VSCode extension (compile + package listing)
 	cd vscode && npm run compile

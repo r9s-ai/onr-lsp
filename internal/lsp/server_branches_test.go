@@ -178,6 +178,13 @@ func TestCompletionAndWordHelpers_Branches(t *testing.T) {
 	if got := lineAt("a\nb", 9); got != "" {
 		t.Fatalf("lineAt out-of-range should return empty, got %q", got)
 	}
+
+	if dir, pfx, ok := enumArgCompletionPrefix("balance_unit U", "balance"); !ok || dir != "balance_unit" || pfx != "U" {
+		t.Fatalf("expected enum arg completion prefix for balance_unit, got dir=%q pfx=%q ok=%v", dir, pfx, ok)
+	}
+	if dir, _, ok := enumArgCompletionPrefix("req_map op", "request"); ok || dir != "" {
+		t.Fatalf("req_map should be handled by mode completion, not enum args")
+	}
 }
 
 func TestCurrentBlockStack_Branches(t *testing.T) {

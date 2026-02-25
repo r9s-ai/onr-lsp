@@ -395,6 +395,13 @@ func complete(text string, pos Position) []CompletionItem {
 	}
 	block := currentCompletionBlock(text, pos)
 
+	if dir, argPrefix, ok := enumArgCompletionPrefix(prefix, block); ok {
+		values := enumValuesByDirectiveInBlock(dir, block)
+		if len(values) > 0 {
+			return completionItemsFromValues(values, argPrefix, dir+" value", "Built-in ONR directive value.", 12)
+		}
+	}
+
 	dir, dirPrefix, ok := modeCompletionPrefix(prefix)
 	if ok && directiveAllowedInPhase(dir, block) {
 		return completionItemsFromValues(modeListByDirective(dir), dirPrefix, dir+" mode", "Built-in ONR mapping mode.", 3)
@@ -436,6 +443,10 @@ func modeListByDirective(directive string) []string {
 	return dslconfig.ModesByDirective(directive)
 }
 
+func enumValuesByDirectiveInBlock(directive, block string) []string {
+	return dslconfig.DirectiveArgEnumValuesInBlock(directive, block, 0)
+}
+
 func directiveAllowedInPhase(directive, phase string) bool {
 	switch directive {
 	case "req_map":
@@ -455,6 +466,18 @@ func directiveAllowedInPhase(directive, phase string) bool {
 	default:
 		return true
 	}
+}
+
+func enumArgCompletionPrefix(linePrefix, block string) (directive string, prefix string, ok bool) {
+	for _, dir := range directiveListByBlock(block) {
+		if len(enumValuesByDirectiveInBlock(dir, block)) == 0 {
+			continue
+		}
+		if pfx, ok := directiveCompletionPrefix(linePrefix, dir); ok {
+			return dir, pfx, true
+		}
+	}
+	return "", "", false
 }
 
 func currentCompletionBlock(text string, pos Position) string {

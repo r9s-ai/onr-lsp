@@ -1,0 +1,52 @@
+# ONR DSL for VS Code
+
+VS Code extension for editing Open Next Router (ONR) provider DSL (`*.conf`).
+
+## Features
+
+- Syntax highlight
+  - TextMate grammar for immediate lexical highlight
+  - Semantic tokens from `onr-lsp` for context-aware token coloring
+- Completion
+  - Directive completion by current DSL block
+  - Mapper mode completion for directives like `req_map`, `resp_map`, `sse_parse`
+  - Enum value completion for selected directives (for example `balance_unit`, `method`, `oauth_content_type`)
+- Hover
+  - Short directive documentation from ONR DSL metadata
+- Diagnostics
+  - Basic syntax diagnostics (missing braces, unknown directives)
+  - Semantic diagnostics for invalid mapper modes
+
+## Scope
+
+The extension client is activated for:
+
+- `**/providers/*.conf`
+
+## Server Resolution
+
+The extension resolves language server binary in this order:
+
+1. `onrLsp.serverPath` (if configured)
+2. bundled binary in extension package (`bin/<platform>-<arch>/onr-lsp`)
+3. `onr-lsp` from system `PATH`
+
+## Configuration
+
+- `onrLsp.serverPath`
+  - Optional absolute path or command name for `onr-lsp`
+  - Keep empty to use bundled binary first
+
+## Build and Package (Repo Local)
+
+From `onr-lsp/`:
+
+```bash
+make vscode-compile
+make vscode-package
+```
+
+## Notes
+
+- If you just installed/updated the extension, run `Developer: Reload Window` once.
+- This extension only provides editor/LSP capabilities. Runtime behavior is still defined by ONR DSL config and ONR server.

@@ -136,6 +136,60 @@ func TestCompleteModelsModeInModelsPhase(t *testing.T) {
 	}
 }
 
+func TestCompleteBalanceUnitEnumValues(t *testing.T) {
+	text := "provider \"x\" {\n  defaults { balance { balance_unit U } }\n}\n"
+	items := complete(text, Position{Line: 1, Character: len("  defaults { balance { balance_unit U")})
+	if len(items) == 0 {
+		t.Fatalf("expected balance_unit enum completion in balance phase")
+	}
+	found := false
+	for _, it := range items {
+		if it.Label == "USD" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected USD in balance_unit completion, got: %+v", items)
+	}
+}
+
+func TestCompleteMethodEnumValuesInModelsPhase(t *testing.T) {
+	text := "provider \"x\" {\n  defaults { models { method P } }\n}\n"
+	items := complete(text, Position{Line: 1, Character: len("  defaults { models { method P")})
+	if len(items) == 0 {
+		t.Fatalf("expected method enum completion in models phase")
+	}
+	found := false
+	for _, it := range items {
+		if it.Label == "POST" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected POST in method completion, got: %+v", items)
+	}
+}
+
+func TestCompleteOAuthContentTypeEnumValuesInAuthPhase(t *testing.T) {
+	text := "provider \"x\" {\n  defaults { auth { oauth_content_type j } }\n}\n"
+	items := complete(text, Position{Line: 1, Character: len("  defaults { auth { oauth_content_type j")})
+	if len(items) == 0 {
+		t.Fatalf("expected oauth_content_type enum completion in auth phase")
+	}
+	found := false
+	for _, it := range items {
+		if it.Label == "json" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected json in oauth_content_type completion, got: %+v", items)
+	}
+}
+
 func TestCompleteDirectiveInAuthBlock(t *testing.T) {
 	text := "provider \"x\" {\n  defaults { auth { a } }\n}\n"
 	items := complete(text, Position{Line: 1, Character: len("  defaults { auth { a")})
