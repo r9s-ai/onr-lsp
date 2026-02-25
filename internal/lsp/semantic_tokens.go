@@ -249,121 +249,146 @@ func encodeSemanticSpans(spans []semanticSpan) []uint32 {
 }
 
 func lexSemantic(input string) []semanticLexToken {
-	out := make([]semanticLexToken, 0, len(input)/3)
-	line, col := 0, 0
-
-	emit := func(kind semanticLexKind, text string, l, c int) {
-		out = append(out, semanticLexToken{
-			kind:   kind,
-			text:   text,
-			line:   l,
-			col:    c,
-			length: len(text),
-		})
+	state := semanticLexState{
+		input: input,
+		out:   make([]semanticLexToken, 0, len(input)/3),
 	}
-
-	for i := 0; i < len(input); {
-		ch := input[i]
-		if ch == '\n' {
-			line++
-			col = 0
-			i++
+	for state.i < len(state.input) {
+		if state.scanWhitespaceOrNewline() || state.scanComment() || state.scanSingleChar() || state.scanString() || state.scanIdentOrNumber() {
 			continue
 		}
-		if ch == ' ' || ch == '\t' || ch == '\r' {
-			col++
-			i++
-			continue
-		}
-
-		startLine, startCol := line, col
-		if ch == '#' || (ch == '/' && i+1 < len(input) && input[i+1] == '/') {
-			j := i
-			for j < len(input) && input[j] != '\n' {
-				j++
-			}
-			emit(semanticLexComment, input[i:j], startLine, startCol)
-			col += j - i
-			i = j
-			continue
-		}
-
-		switch ch {
-		case '{':
-			emit(semanticLexLBrace, "{", startLine, startCol)
-			i++
-			col++
-			continue
-		case '}':
-			emit(semanticLexRBrace, "}", startLine, startCol)
-			i++
-			col++
-			continue
-		case ';':
-			emit(semanticLexSemicolon, ";", startLine, startCol)
-			i++
-			col++
-			continue
-		case '=':
-			emit(semanticLexOperator, "=", startLine, startCol)
-			i++
-			col++
-			continue
-		case '"':
-			j := i + 1
-			for j < len(input) {
-				if input[j] == '\\' && j+1 < len(input) {
-					j += 2
-					continue
-				}
-				if input[j] == '"' {
-					j++
-					break
-				}
-				if input[j] == '\n' {
-					break
-				}
-				j++
-			}
-			emit(semanticLexString, input[i:j], startLine, startCol)
-			col += j - i
-			i = j
-			continue
-		}
-
-		if isIdentStart(ch) {
-			j := i + 1
-			for j < len(input) && isIdentPart(input[j]) {
-				j++
-			}
-			emit(semanticLexIdent, input[i:j], startLine, startCol)
-			col += j - i
-			i = j
-			continue
-		}
-		if ch >= '0' && ch <= '9' {
-			j := i + 1
-			for j < len(input) && input[j] >= '0' && input[j] <= '9' {
-				j++
-			}
-			if j < len(input) && input[j] == '.' {
-				k := j + 1
-				for k < len(input) && input[k] >= '0' && input[k] <= '9' {
-					k++
-				}
-				if k > j+1 {
-					j = k
-				}
-			}
-			emit(semanticLexNumber, input[i:j], startLine, startCol)
-			col += j - i
-			i = j
-			continue
-		}
-
-		emit(semanticLexOther, string(ch), startLine, startCol)
-		i++
-		col++
+		state.emit(semanticLexOther, string(state.input[state.i]), state.line, state.col)
+		state.i++
+		state.col++
 	}
-	return out
+	return state.out
+}
+
+type semanticLexState struct {
+	input string
+	out   []semanticLexToken
+	i     int
+	line  int
+	col   int
+}
+
+func (s *semanticLexState) emit(kind semanticLexKind, text string, line, col int) {
+	s.out = append(s.out, semanticLexToken{
+		kind:   kind,
+		text:   text,
+		line:   line,
+		col:    col,
+		length: len(text),
+	})
+}
+
+func (s *semanticLexState) scanWhitespaceOrNewline() bool {
+	ch := s.input[s.i]
+	if ch == '\n' {
+		s.line++
+		s.col = 0
+		s.i++
+		return true
+	}
+	if ch == ' ' || ch == '\t' || ch == '\r' {
+		s.col++
+		s.i++
+		return true
+	}
+	return false
+}
+
+func (s *semanticLexState) scanComment() bool {
+	ch := s.input[s.i]
+	if !(ch == '#' || (ch == '/' && s.i+1 < len(s.input) && s.input[s.i+1] == '/')) {
+		return false
+	}
+	startLine, startCol, j := s.line, s.col, s.i
+	for j < len(s.input) && s.input[j] != '\n' {
+		j++
+	}
+	s.emit(semanticLexComment, s.input[s.i:j], startLine, startCol)
+	s.col += j - s.i
+	s.i = j
+	return true
+}
+
+func (s *semanticLexState) scanSingleChar() bool {
+	startLine, startCol := s.line, s.col
+	switch s.input[s.i] {
+	case '{':
+		s.emit(semanticLexLBrace, "{", startLine, startCol)
+	case '}':
+		s.emit(semanticLexRBrace, "}", startLine, startCol)
+	case ';':
+		s.emit(semanticLexSemicolon, ";", startLine, startCol)
+	case '=':
+		s.emit(semanticLexOperator, "=", startLine, startCol)
+	default:
+		return false
+	}
+	s.i++
+	s.col++
+	return true
+}
+
+func (s *semanticLexState) scanString() bool {
+	if s.input[s.i] != '"' {
+		return false
+	}
+	startLine, startCol := s.line, s.col
+	j := s.i + 1
+	for j < len(s.input) {
+		if s.input[j] == '\\' && j+1 < len(s.input) {
+			j += 2
+			continue
+		}
+		if s.input[j] == '"' {
+			j++
+			break
+		}
+		if s.input[j] == '\n' {
+			break
+		}
+		j++
+	}
+	s.emit(semanticLexString, s.input[s.i:j], startLine, startCol)
+	s.col += j - s.i
+	s.i = j
+	return true
+}
+
+func (s *semanticLexState) scanIdentOrNumber() bool {
+	ch := s.input[s.i]
+	startLine, startCol := s.line, s.col
+	if isIdentStart(ch) {
+		j := s.i + 1
+		for j < len(s.input) && isIdentPart(s.input[j]) {
+			j++
+		}
+		s.emit(semanticLexIdent, s.input[s.i:j], startLine, startCol)
+		s.col += j - s.i
+		s.i = j
+		return true
+	}
+	if ch < '0' || ch > '9' {
+		return false
+	}
+	j := s.i + 1
+	for j < len(s.input) && s.input[j] >= '0' && s.input[j] <= '9' {
+		j++
+	}
+	if j < len(s.input) && s.input[j] == '.' {
+		k := j + 1
+		for k < len(s.input) && s.input[k] >= '0' && s.input[k] <= '9' {
+			k++
+		}
+		if k > j+1 {
+			j = k
+		}
+	}
+	s.emit(semanticLexNumber, s.input[s.i:j], startLine, startCol)
+	s.col += j - s.i
+	s.i = j
+	return true
 }

@@ -162,7 +162,15 @@ func (p *parser) skipStatement(name string) {
 			p.add(tok, name+" does not use '{ ... }'; expected ';'")
 			p.skipBalancedBlock(name)
 			return
-		case tokRBrace, tokEOF:
+		case tokRBrace:
+			p.add(tok, "expected ';' after "+name)
+			if p.i > 0 {
+				// Put '}' back so outer parseBlock can consume it as a block terminator.
+				p.i--
+			}
+			return
+		case tokEOF:
+			p.add(tok, "expected ';' after "+name)
 			return
 		}
 	}
@@ -240,8 +248,8 @@ var phaseDirectivesDefaults = map[string]directiveSpec{
 	"response":        {name: "response", block: true, sub: responseDirectives},
 	"error":           {name: "error", block: true, sub: errorDirectives},
 	"metrics":         {name: "metrics", block: true, sub: metricsDirectives},
-	"balance":         {name: "balance", block: true},
-	"models":          {name: "models", block: true},
+	"balance":         {name: "balance", block: true, sub: balanceDirectives},
+	"models":          {name: "models", block: true, sub: modelsDirectives},
 }
 
 var phaseDirectivesMatch = map[string]directiveSpec{
@@ -325,6 +333,32 @@ var metricsDirectives = map[string]directiveSpec{
 	"cache_write_tokens_path": {name: "cache_write_tokens_path"},
 	"finish_reason_extract":   {name: "finish_reason_extract"},
 	"finish_reason_path":      {name: "finish_reason_path"},
+}
+
+var balanceDirectives = map[string]directiveSpec{
+	"balance_mode":      {name: "balance_mode"},
+	"method":            {name: "method"},
+	"path":              {name: "path"},
+	"balance_path":      {name: "balance_path"},
+	"used_path":         {name: "used_path"},
+	"balance_unit":      {name: "balance_unit"},
+	"subscription_path": {name: "subscription_path"},
+	"usage_path":        {name: "usage_path"},
+	"balance":           {name: "balance"},
+	"used":              {name: "used"},
+	"set_header":        {name: "set_header"},
+	"del_header":        {name: "del_header"},
+}
+
+var modelsDirectives = map[string]directiveSpec{
+	"models_mode":    {name: "models_mode"},
+	"method":         {name: "method"},
+	"path":           {name: "path"},
+	"id_path":        {name: "id_path"},
+	"id_regex":       {name: "id_regex"},
+	"id_allow_regex": {name: "id_allow_regex"},
+	"set_header":     {name: "set_header"},
+	"del_header":     {name: "del_header"},
 }
 
 func allowedBlocksForDirective(d string) []string {

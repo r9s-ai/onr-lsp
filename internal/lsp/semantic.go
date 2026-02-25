@@ -1,6 +1,7 @@
 package lsp
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -15,6 +16,9 @@ import (
 
 var scannerErrRe = regexp.MustCompile(`^(.+):(\d+):(\d+):\s*(.+)$`)
 var providerNameRe = regexp.MustCompile(`(?m)\bprovider\s+"([^"]+)"`)
+var semanticDirectiveMustBeRe = regexp.MustCompile(`:\s*[^\s]+\s+([a-z_][a-z0-9_]*)\s+must\s+be\b`)
+var semanticUnsupportedModeRe = regexp.MustCompile(`unsupported\s+([a-z_][a-z0-9_]*)\s+mode\b`)
+var semanticUnsupportedDirectiveRe = regexp.MustCompile(`unsupported\s+([a-z_][a-z0-9_]*)\b`)
 
 func collectDiagnostics(uri, text string) []Diagnostic {
 	out := make([]Diagnostic, 0, 8)
@@ -45,13 +49,19 @@ func analyzeSemantic(uri, text string) []Diagnostic {
 		// Usually a transient edit-state mismatch, not a semantic DSL problem.
 		return nil
 	}
+	var issue *dslconfig.ValidationIssue
+	if errors.As(err, &issue) {
+		if line, col, ok := semanticDirectivePositionWithScope(text, issue.Directive, issue.Scope); ok {
+			return []Diagnostic{newDiagnostic(line, col, msg)}
+		}
+	}
 
 	if m := scannerErrRe.FindStringSubmatch(msg); len(m) == 5 {
 		line, _ := strconv.Atoi(m[2])
 		col, _ := strconv.Atoi(m[3])
 		return []Diagnostic{newDiagnostic(max(line-1, 0), max(col-1, 0), strings.TrimSpace(m[4]))}
 	}
-	return []Diagnostic{newDiagnostic(0, 0, msg)}
+	return []Diagnostic{diagnosticFromSemanticMessage(text, msg)}
 }
 
 func analyzeSemanticModes(text string) []Diagnostic {
@@ -206,4 +216,109 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func diagnosticFromSemanticMessage(text, msg string) Diagnostic {
+	if line, col, ok := semanticDirectivePosition(text, msg); ok {
+		return newDiagnostic(line, col, msg)
+	}
+	return newDiagnostic(0, 0, msg)
+}
+
+func semanticDirectivePosition(text, msg string) (int, int, bool) {
+	directive := semanticDirectiveFromMessage(msg)
+	if directive == "" {
+		return 0, 0, false
+	}
+	return semanticDirectivePositionWithScope(text, directive, "")
+}
+
+func semanticDirectivePositionWithScope(text, directive, scope string) (int, int, bool) {
+	blockHint := blockHintFromScope(scope)
+	toks := lex(text)
+	stack := make([]string, 0, 8)
+	pending := ""
+	lockedPending := false
+	for i := 0; i < len(toks); i++ {
+		tok := toks[i]
+		switch tok.kind {
+		case tokIdent:
+			if isBlockKeyword(tok.text) {
+				if tok.text == "match" {
+					pending = tok.text
+					lockedPending = true
+				} else if !lockedPending {
+					pending = tok.text
+				}
+			}
+			if tok.text == directive && isStatementStart(toks, i) {
+				block := "_top"
+				if len(stack) > 0 {
+					block = stack[len(stack)-1]
+				}
+				if blockHint == "" || block == blockHint {
+					return tok.line, tok.col, true
+				}
+			}
+		case tokLBrace:
+			name := pending
+			if name == "" {
+				name = "unknown"
+			}
+			stack = append(stack, name)
+			pending = ""
+			lockedPending = false
+		case tokRBrace:
+			if len(stack) > 0 {
+				stack = stack[:len(stack)-1]
+			}
+			pending = ""
+			lockedPending = false
+		case tokSemicolon:
+			if !lockedPending {
+				pending = ""
+			}
+		}
+	}
+	return 0, 0, false
+}
+
+func blockHintFromScope(scope string) string {
+	s := strings.TrimSpace(scope)
+	if s == "" {
+		return ""
+	}
+	if strings.Contains(s, ".auth.oauth") {
+		return "auth"
+	}
+	segments := strings.Split(s, ".")
+	for i := len(segments) - 1; i >= 0; i-- {
+		seg := scopeSegmentBase(segments[i])
+		switch seg {
+		case "upstream_config", "upstream", "auth", "request", "response", "error", "metrics", "balance", "models":
+			return seg
+		}
+	}
+	return ""
+}
+
+func scopeSegmentBase(seg string) string {
+	s := strings.TrimSpace(seg)
+	if i := strings.IndexByte(s, '['); i >= 0 {
+		return s[:i]
+	}
+	return s
+}
+
+func semanticDirectiveFromMessage(msg string) string {
+	if m := semanticDirectiveMustBeRe.FindStringSubmatch(strings.ToLower(msg)); len(m) == 2 {
+		return strings.TrimSpace(m[1])
+	}
+	if m := semanticUnsupportedModeRe.FindStringSubmatch(strings.ToLower(msg)); len(m) == 2 {
+		return strings.TrimSpace(m[1])
+	}
+	if m := semanticUnsupportedDirectiveRe.FindStringSubmatch(strings.ToLower(msg)); len(m) == 2 {
+		return strings.TrimSpace(m[1])
+	}
+	return ""
 }

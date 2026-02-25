@@ -34,3 +34,33 @@ func TestDiagnostics_UnknownDirectiveWithBlock(t *testing.T) {
 		t.Fatalf("expected unknown directive diagnostic, got: %+v", diags)
 	}
 }
+
+func TestDiagnostics_MissingSemicolonBeforeRBrace(t *testing.T) {
+	text := "provider \"x\" {\n  defaults {\n    balance {\n      balance_unit USD\n    }\n  }\n}\n"
+	diags := analyze(text)
+	found := false
+	for _, d := range diags {
+		if strings.Contains(d.Message, "expected ';' after balance_unit") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected missing semicolon diagnostic, got: %+v", diags)
+	}
+}
+
+func TestDiagnostics_MissingSemicolonAtEOF(t *testing.T) {
+	text := "provider \"x\" {\n  defaults {\n    request {\n      req_map openai_chat_to_openai_responses\n"
+	diags := analyze(text)
+	found := false
+	for _, d := range diags {
+		if strings.Contains(d.Message, "expected ';' after req_map") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected missing semicolon at EOF diagnostic, got: %+v", diags)
+	}
+}
