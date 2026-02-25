@@ -3,6 +3,7 @@
 
 BIN_DIR := bin
 LSP_BIN := $(BIN_DIR)/onr-lsp
+GO := go
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
@@ -20,29 +21,29 @@ help: ## Show this help message
 
 build: ## Build ONR LSP server binary
 	mkdir -p $(BIN_DIR)
-	go build -ldflags "$(LDFLAGS)" -o $(LSP_BIN) ./cmd/onr-lsp
+	$(GO) build -ldflags "$(LDFLAGS)" -o $(LSP_BIN) ./cmd/onr-lsp
 
 run: ## Run ONR LSP server (stdio)
-	go run -ldflags "$(LDFLAGS)" ./cmd/onr-lsp
+	$(GO) run -ldflags "$(LDFLAGS)" ./cmd/onr-lsp
 
 test: ## Run Go tests
-	go test ./...
+	$(GO) test ./...
 
 fmt: ## Format Go code
-	go fmt ./...
+	$(GO) fmt ./...
 
 tidy: ## Tidy Go modules
-	go mod tidy
+	$(GO) mod tidy
 
 clean: ## Remove build artifacts
 	rm -rf $(BIN_DIR)/
-	go clean
+	$(GO) clean
 
 vscode-install: ## Install VSCode client dependencies
 	cd vscode && npm install
 
 vscode-generate-syntax: ## Generate TextMate grammar from onr-core directive metadata
-	go run ./cmd/onr-tmgen -output vscode/syntaxes/onr.tmLanguage.json
+	$(GO) run ./cmd/onr-tmgen -output vscode/syntaxes/onr.tmLanguage.json
 
 vscode-compile: vscode-generate-syntax ## Compile VSCode client extension
 	cd vscode && npm run compile
@@ -50,7 +51,7 @@ vscode-compile: vscode-generate-syntax ## Compile VSCode client extension
 vscode-watch: ## Watch-compile VSCode client extension
 	cd vscode && npm run watch
 
-vscode-bundle-bins: ## Build bundled onr-lsp binaries for VSCode extension
+	vscode-bundle-bins: ## Build bundled onr-lsp binaries for VSCode extension
 	rm -rf vscode/bin
 	mkdir -p vscode/bin/linux-x64 vscode/bin/linux-arm64 vscode/bin/darwin-x64 vscode/bin/darwin-arm64 vscode/bin/win32-x64 vscode/bin/win32-arm64
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o vscode/bin/linux-x64/onr-lsp ./cmd/onr-lsp
