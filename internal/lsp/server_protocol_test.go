@@ -256,7 +256,7 @@ func TestHandle_InvalidSemanticTokensParamsReplyError(t *testing.T) {
 
 func writeLSPMessage(w *bytes.Buffer, payload any) {
 	b, _ := json.Marshal(payload)
-	_, _ = w.WriteString(fmt.Sprintf("Content-Length: %d\r\n\r\n", len(b)))
+	_, _ = fmt.Fprintf(w, "Content-Length: %d\r\n\r\n", len(b))
 	_, _ = w.Write(b)
 }
 

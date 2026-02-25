@@ -294,8 +294,7 @@ func blockHintFromScope(scope string) string {
 	segments := strings.Split(s, ".")
 	for i := len(segments) - 1; i >= 0; i-- {
 		seg := scopeSegmentBase(segments[i])
-		switch seg {
-		case "upstream_config", "upstream", "auth", "request", "response", "error", "metrics", "balance", "models":
+		if dslconfig.IsBlockDirective(seg) {
 			return seg
 		}
 	}

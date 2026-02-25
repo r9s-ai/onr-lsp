@@ -370,15 +370,8 @@ func TestHoverRequestWithNoDocReturnsNullResult(t *testing.T) {
 	uri := "file:///tmp/a.conf"
 	s.docs[uri] = "provider \"x\" {\n  defaults {}\n}\n"
 
-	params, err := json.Marshal(hoverParams{
-		TextDocument: textDocumentIdentifier{URI: uri},
-		Position:     Position{Line: 1, Character: 2}, // points to "defaults" (has docs) let's move to unknown token
-	})
-	if err != nil {
-		t.Fatalf("marshal params: %v", err)
-	}
 	// choose character on whitespace to force empty/unknown hover.
-	params, err = json.Marshal(hoverParams{
+	params, err := json.Marshal(hoverParams{
 		TextDocument: textDocumentIdentifier{URI: uri},
 		Position:     Position{Line: 1, Character: 0},
 	})

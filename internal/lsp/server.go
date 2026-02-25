@@ -39,13 +39,6 @@ type inboundMessage struct {
 	Params  json.RawMessage  `json:"params,omitempty"`
 }
 
-type responseMessage struct {
-	JSONRPC string      `json:"jsonrpc"`
-	ID      interface{} `json:"id,omitempty"`
-	Result  interface{} `json:"result"`
-	Error   *respError  `json:"error,omitempty"`
-}
-
 type respError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
@@ -413,7 +406,7 @@ func complete(text string, pos Position) []CompletionItem {
 }
 
 func modeCompletionPrefix(linePrefix string) (directive string, prefix string, ok bool) {
-	for _, dir := range []string{"req_map", "resp_map", "sse_parse", "error_map", "usage_extract", "finish_reason_extract", "oauth_mode", "balance_mode", "models_mode"} {
+	for _, dir := range dslconfig.ModeDirectiveNames() {
 		if pfx, ok := directiveCompletionPrefix(linePrefix, dir); ok {
 			return dir, pfx, true
 		}
@@ -448,24 +441,16 @@ func enumValuesByDirectiveInBlock(directive, block string) []string {
 }
 
 func directiveAllowedInPhase(directive, phase string) bool {
-	switch directive {
-	case "req_map":
-		return phase == "request"
-	case "resp_map", "sse_parse":
-		return phase == "response"
-	case "error_map":
-		return phase == "error"
-	case "usage_extract", "finish_reason_extract":
-		return phase == "metrics"
-	case "oauth_mode":
-		return phase == "auth"
-	case "balance_mode":
-		return phase == "balance"
-	case "models_mode":
-		return phase == "models"
-	default:
+	allowed := dslconfig.DirectiveAllowedBlocks(directive)
+	if len(allowed) == 0 {
 		return true
 	}
+	for _, block := range allowed {
+		if block == phase {
+			return true
+		}
+	}
+	return false
 }
 
 func enumArgCompletionPrefix(linePrefix, block string) (directive string, prefix string, ok bool) {
@@ -535,12 +520,7 @@ func currentBlockStack(text string, pos Position) []string {
 }
 
 func isBlockKeyword(s string) bool {
-	switch s {
-	case "provider", "defaults", "match", "upstream_config", "upstream", "auth", "request", "response", "error", "metrics", "balance", "models":
-		return true
-	default:
-		return false
-	}
+	return dslconfig.IsBlockDirective(s)
 }
 
 func tokenAfterPosition(tok token, pos Position) bool {

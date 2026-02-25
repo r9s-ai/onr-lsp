@@ -1,6 +1,10 @@
 package lsp
 
-import "strings"
+import (
+	"strings"
+
+	dslconfig "github.com/r9s-ai/open-next-router/onr-core/pkg/dslconfig"
+)
 
 type tokenKind int
 
@@ -236,157 +240,106 @@ type directiveSpec struct {
 	sub                   map[string]directiveSpec
 }
 
-var providerDirectives = map[string]directiveSpec{
-	"defaults": {name: "defaults", block: true, sub: phaseDirectivesDefaults},
-	"match":    {name: "match", block: true, parseHeaderUntilBrace: true, sub: phaseDirectivesMatch},
+var (
+	providerDirectives    map[string]directiveSpec
+	directiveAllowedInMap map[string][]string
+	blockKeywordSet       map[string]struct{}
+)
+
+func init() {
+	initDirectiveSpecsFromMetadata()
 }
 
-var phaseDirectivesDefaults = map[string]directiveSpec{
-	"upstream_config": {name: "upstream_config", block: true, sub: upstreamConfigDirectives},
-	"auth":            {name: "auth", block: true, sub: authDirectives},
-	"request":         {name: "request", block: true, sub: requestDirectives},
-	"response":        {name: "response", block: true, sub: responseDirectives},
-	"error":           {name: "error", block: true, sub: errorDirectives},
-	"metrics":         {name: "metrics", block: true, sub: metricsDirectives},
-	"balance":         {name: "balance", block: true, sub: balanceDirectives},
-	"models":          {name: "models", block: true, sub: modelsDirectives},
+func initDirectiveSpecsFromMetadata() {
+	meta := dslconfig.DirectiveMetadataList()
+	knownBlocks := map[string]struct{}{}
+	directiveAllowedInMap = map[string][]string{}
+	seenDirectiveBlocks := map[string]map[string]struct{}{}
+
+	for _, item := range meta {
+		block := normalizeMetaBlock(item.Block)
+		name := strings.TrimSpace(item.Name)
+		if block == "" || name == "" {
+			continue
+		}
+		knownBlocks[block] = struct{}{}
+		if _, ok := seenDirectiveBlocks[name]; !ok {
+			seenDirectiveBlocks[name] = map[string]struct{}{}
+		}
+		if _, ok := seenDirectiveBlocks[name][block]; ok {
+			continue
+		}
+		seenDirectiveBlocks[name][block] = struct{}{}
+		directiveAllowedInMap[name] = append(directiveAllowedInMap[name], block)
+	}
+
+	blockKeywordSet = map[string]struct{}{
+		"provider": {},
+	}
+	for block := range knownBlocks {
+		if block == "top" {
+			continue
+		}
+		blockKeywordSet[block] = struct{}{}
+	}
+	cache := map[string]map[string]directiveSpec{}
+	var buildBlockSpecs func(block string, visiting map[string]bool) map[string]directiveSpec
+	buildBlockSpecs = func(block string, visiting map[string]bool) map[string]directiveSpec {
+		if cached, ok := cache[block]; ok {
+			return cached
+		}
+		if visiting[block] {
+			return nil
+		}
+		visiting[block] = true
+		defer delete(visiting, block)
+
+		names := dslconfig.DirectivesByBlock(block)
+		specs := make(map[string]directiveSpec, len(names))
+		for _, name := range names {
+			spec := directiveSpec{name: name}
+			if _, isBlock := blockKeywordSet[name]; isBlock {
+				spec.block = true
+				spec.parseHeaderUntilBrace = name == "match"
+				spec.sub = buildBlockSpecs(name, visiting)
+			}
+			specs[name] = spec
+		}
+		cache[block] = specs
+		return specs
+	}
+
+	providerDirectives = buildBlockSpecs("provider", map[string]bool{})
 }
 
-var phaseDirectivesMatch = map[string]directiveSpec{
-	"upstream": {name: "upstream", block: true, sub: upstreamDirectives},
-	"auth":     {name: "auth", block: true, sub: authDirectives},
-	"request":  {name: "request", block: true, sub: requestDirectives},
-	"response": {name: "response", block: true, sub: responseDirectives},
-	"error":    {name: "error", block: true, sub: errorDirectives},
-	"metrics":  {name: "metrics", block: true, sub: metricsDirectives},
-}
-
-var upstreamConfigDirectives = map[string]directiveSpec{
-	"base_url": {name: "base_url"},
-}
-
-var upstreamDirectives = map[string]directiveSpec{
-	"set_path":  {name: "set_path"},
-	"set_query": {name: "set_query"},
-	"del_query": {name: "del_query"},
-}
-
-var authDirectives = map[string]directiveSpec{
-	"auth_bearer":            {name: "auth_bearer"},
-	"auth_header_key":        {name: "auth_header_key"},
-	"auth_oauth_bearer":      {name: "auth_oauth_bearer"},
-	"oauth_mode":             {name: "oauth_mode"},
-	"oauth_token_url":        {name: "oauth_token_url"},
-	"oauth_client_id":        {name: "oauth_client_id"},
-	"oauth_client_secret":    {name: "oauth_client_secret"},
-	"oauth_refresh_token":    {name: "oauth_refresh_token"},
-	"oauth_scope":            {name: "oauth_scope"},
-	"oauth_audience":         {name: "oauth_audience"},
-	"oauth_method":           {name: "oauth_method"},
-	"oauth_content_type":     {name: "oauth_content_type"},
-	"oauth_token_path":       {name: "oauth_token_path"},
-	"oauth_expires_in_path":  {name: "oauth_expires_in_path"},
-	"oauth_token_type_path":  {name: "oauth_token_type_path"},
-	"oauth_timeout_ms":       {name: "oauth_timeout_ms"},
-	"oauth_refresh_skew_sec": {name: "oauth_refresh_skew_sec"},
-	"oauth_fallback_ttl_sec": {name: "oauth_fallback_ttl_sec"},
-	"oauth_form":             {name: "oauth_form"},
-}
-
-var requestDirectives = map[string]directiveSpec{
-	"set_header":         {name: "set_header"},
-	"del_header":         {name: "del_header"},
-	"model_map":          {name: "model_map"},
-	"model_map_default":  {name: "model_map_default"},
-	"json_set":           {name: "json_set"},
-	"json_set_if_absent": {name: "json_set_if_absent"},
-	"json_del":           {name: "json_del"},
-	"json_rename":        {name: "json_rename"},
-	"req_map":            {name: "req_map"},
-}
-
-var responseDirectives = map[string]directiveSpec{
-	"resp_passthrough":   {name: "resp_passthrough"},
-	"resp_map":           {name: "resp_map"},
-	"sse_parse":          {name: "sse_parse"},
-	"json_set":           {name: "json_set"},
-	"json_set_if_absent": {name: "json_set_if_absent"},
-	"json_del":           {name: "json_del"},
-	"json_rename":        {name: "json_rename"},
-	"sse_json_del_if":    {name: "sse_json_del_if"},
-}
-
-var errorDirectives = map[string]directiveSpec{
-	"error_map": {name: "error_map"},
-}
-
-var metricsDirectives = map[string]directiveSpec{
-	"usage_extract":           {name: "usage_extract"},
-	"input_tokens":            {name: "input_tokens"},
-	"output_tokens":           {name: "output_tokens"},
-	"cache_read_tokens":       {name: "cache_read_tokens"},
-	"cache_write_tokens":      {name: "cache_write_tokens"},
-	"total_tokens":            {name: "total_tokens"},
-	"input_tokens_path":       {name: "input_tokens_path"},
-	"output_tokens_path":      {name: "output_tokens_path"},
-	"cache_read_tokens_path":  {name: "cache_read_tokens_path"},
-	"cache_write_tokens_path": {name: "cache_write_tokens_path"},
-	"finish_reason_extract":   {name: "finish_reason_extract"},
-	"finish_reason_path":      {name: "finish_reason_path"},
-}
-
-var balanceDirectives = map[string]directiveSpec{
-	"balance_mode":      {name: "balance_mode"},
-	"method":            {name: "method"},
-	"path":              {name: "path"},
-	"balance_path":      {name: "balance_path"},
-	"used_path":         {name: "used_path"},
-	"balance_unit":      {name: "balance_unit"},
-	"subscription_path": {name: "subscription_path"},
-	"usage_path":        {name: "usage_path"},
-	"balance":           {name: "balance"},
-	"used":              {name: "used"},
-	"set_header":        {name: "set_header"},
-	"del_header":        {name: "del_header"},
-}
-
-var modelsDirectives = map[string]directiveSpec{
-	"models_mode":    {name: "models_mode"},
-	"method":         {name: "method"},
-	"path":           {name: "path"},
-	"id_path":        {name: "id_path"},
-	"id_regex":       {name: "id_regex"},
-	"id_allow_regex": {name: "id_allow_regex"},
-	"set_header":     {name: "set_header"},
-	"del_header":     {name: "del_header"},
+func normalizeMetaBlock(block string) string {
+	b := strings.TrimSpace(strings.ToLower(block))
+	if b == "_top" {
+		return "top"
+	}
+	return b
 }
 
 func allowedBlocksForDirective(d string) []string {
-	switch d {
-	case "upstream_config":
-		return []string{"defaults"}
-	case "upstream":
-		return []string{"match"}
-	case "auth_bearer", "auth_header_key", "auth_oauth_bearer", "oauth_mode", "oauth_token_url", "oauth_client_id", "oauth_client_secret", "oauth_refresh_token", "oauth_scope", "oauth_audience", "oauth_method", "oauth_content_type", "oauth_token_path", "oauth_expires_in_path", "oauth_token_type_path", "oauth_timeout_ms", "oauth_refresh_skew_sec", "oauth_fallback_ttl_sec", "oauth_form":
-		return []string{"auth"}
-	case "set_header", "del_header", "model_map", "model_map_default", "req_map":
-		return []string{"request"}
-	case "resp_passthrough", "resp_map", "sse_parse", "sse_json_del_if":
-		return []string{"response"}
-	case "error_map":
-		return []string{"error"}
-	case "usage_extract", "input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens", "total_tokens", "input_tokens_path", "output_tokens_path", "cache_read_tokens_path", "cache_write_tokens_path", "finish_reason_extract", "finish_reason_path":
-		return []string{"metrics"}
-	case "set_path", "set_query", "del_query":
-		return []string{"upstream"}
-	case "base_url":
-		return []string{"upstream_config"}
-	case "provider", "defaults", "match", "auth", "request", "response", "error", "metrics", "balance", "models":
-		// block keywords are handled by parser; keep unknown behavior where syntax doesn't match.
-		return nil
-	default:
+	name := strings.TrimSpace(d)
+	if name == "" {
 		return nil
 	}
+	allowed := directiveAllowedInMap[name]
+	if len(allowed) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(allowed))
+	for _, block := range allowed {
+		if block == "top" {
+			continue
+		}
+		out = append(out, block)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func lex(input string) []token {

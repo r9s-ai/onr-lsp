@@ -53,7 +53,7 @@
       "patterns": [
         {
           "name": "keyword.control.onr-dsl",
-          "match": "\\b(?:syntax|provider|defaults|match|upstream_config|upstream|auth|request|response|error|metrics|balance|models|true|false)\\b"
+          "match": "\\b(?:auth|balance|defaults|error|false|match|metrics|models|provider|request|response|syntax|true|upstream|upstream_config)\\b"
         }
       ]
     },

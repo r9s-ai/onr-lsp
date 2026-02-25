@@ -300,7 +300,7 @@ func (s *semanticLexState) scanWhitespaceOrNewline() bool {
 
 func (s *semanticLexState) scanComment() bool {
 	ch := s.input[s.i]
-	if !(ch == '#' || (ch == '/' && s.i+1 < len(s.input) && s.input[s.i+1] == '/')) {
+	if ch != '#' && (ch != '/' || s.i+1 >= len(s.input) || s.input[s.i+1] != '/') {
 		return false
 	}
 	startLine, startCol, j := s.line, s.col, s.i

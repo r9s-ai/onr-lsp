@@ -43,6 +43,16 @@ func main() {
 		fatalf("directive metadata is empty")
 	}
 
+	keywordSet := map[string]struct{}{
+		"syntax": {},
+		"true":   {},
+		"false":  {},
+	}
+	for _, block := range dslconfig.BlockDirectiveNames() {
+		keywordSet[block] = struct{}{}
+	}
+	keywords := setToSortedSlice(keywordSet)
+
 	directiveSet := map[string]struct{}{}
 	modeDirectiveSet := map[string]struct{}{}
 	for _, m := range meta {
@@ -50,7 +60,7 @@ func main() {
 		if name == "" {
 			continue
 		}
-		if isKeyword(name) {
+		if _, ok := keywordSet[name]; ok {
 			continue
 		}
 		directiveSet[name] = struct{}{}
@@ -61,11 +71,6 @@ func main() {
 
 	directives := setToSortedSlice(directiveSet)
 	modeDirectives := setToSortedSlice(modeDirectiveSet)
-	keywords := []string{
-		"syntax", "provider", "defaults", "match", "upstream_config", "upstream",
-		"auth", "request", "response", "error", "metrics", "balance", "models",
-		"true", "false",
-	}
 
 	g := tmLanguage{
 		Schema:    "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
@@ -193,15 +198,6 @@ func regexpQuoteMeta(s string) string {
 		`|`, `\\|`,
 	)
 	return replacer.Replace(s)
-}
-
-func isKeyword(s string) bool {
-	switch s {
-	case "syntax", "provider", "defaults", "match", "upstream_config", "upstream", "auth", "request", "response", "error", "metrics", "balance", "models", "true", "false":
-		return true
-	default:
-		return false
-	}
 }
 
 func fatalf(format string, args ...interface{}) {
