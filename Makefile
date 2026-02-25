@@ -1,10 +1,10 @@
 .PHONY: help build run test fmt tidy clean \
-	vscode-install vscode-compile vscode-watch vscode-package vscode-release-check vscode-bundle-bins vscode-generate-syntax vscode-install-vsix
+	vscode-install vscode-version-patch vscode-compile vscode-watch vscode-package vscode-release-check vscode-bundle-bins vscode-generate-syntax vscode-install-vsix
 
 BIN_DIR := bin
 LSP_BIN := $(BIN_DIR)/onr-lsp
 GO := go
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+VERSION ?= $(shell cd vscode >/dev/null 2>&1 && node -p "require('./package.json').version" 2>/dev/null || git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 LDFLAGS := -s -w \
@@ -42,6 +42,9 @@ clean: ## Remove build artifacts
 vscode-install: ## Install VSCode client dependencies
 	cd vscode && npm install
 
+vscode-version-patch: ## Bump VSCode extension patch version (no git tag)
+	cd vscode && npm version patch --no-git-tag-version
+
 vscode-generate-syntax: ## Generate TextMate grammar from onr-core directive metadata
 	$(GO) run ./cmd/onr-tmgen -output vscode/syntaxes/onr.tmLanguage.json
 
@@ -51,7 +54,7 @@ vscode-compile: vscode-generate-syntax ## Compile VSCode client extension
 vscode-watch: ## Watch-compile VSCode client extension
 	cd vscode && npm run watch
 
-	vscode-bundle-bins: ## Build bundled onr-lsp binaries for VSCode extension
+vscode-bundle-bins: ## Build bundled onr-lsp binaries for VSCode extension
 	rm -rf vscode/bin
 	mkdir -p vscode/bin/linux-x64 vscode/bin/linux-arm64 vscode/bin/darwin-x64 vscode/bin/darwin-arm64 vscode/bin/win32-x64 vscode/bin/win32-arm64
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o vscode/bin/linux-x64/onr-lsp ./cmd/onr-lsp

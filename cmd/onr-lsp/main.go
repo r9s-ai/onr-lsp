@@ -20,6 +20,7 @@ func main() {
 	if maybePrintVersion(os.Args[1:], os.Stdout) {
 		return
 	}
+	lsp.ServerVersion = Version
 	logger := log.New(os.Stderr, "onr-lsp: ", log.LstdFlags|log.Lshortfile)
 	srv := lsp.NewServer(os.Stdin, os.Stdout, logger)
 	if err := srv.Run(); err != nil {

@@ -190,6 +190,41 @@ func TestHandle_InitializeIncludesSemanticTokensCapability(t *testing.T) {
 	}
 }
 
+func TestHandle_InitializeUsesServerVersion(t *testing.T) {
+	old := ServerVersion
+	ServerVersion = "9.9.9-test"
+	t.Cleanup(func() { ServerVersion = old })
+
+	var out bytes.Buffer
+	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))
+
+	rawID := json.RawMessage("99")
+	if err := s.handle(inboundMessage{
+		JSONRPC: "2.0",
+		ID:      &rawID,
+		Method:  "initialize",
+		Params:  json.RawMessage(`{}`),
+	}); err != nil {
+		t.Fatalf("handle initialize: %v", err)
+	}
+
+	msgs := readAllLSPMessages(t, out.Bytes())
+	if len(msgs) != 1 {
+		t.Fatalf("expected one initialize response, got %d", len(msgs))
+	}
+	result, ok := msgs[0]["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected result object, got: %#v", msgs[0]["result"])
+	}
+	info, ok := result["serverInfo"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected serverInfo object, got: %#v", result["serverInfo"])
+	}
+	if got, ok := info["version"].(string); !ok || got != ServerVersion {
+		t.Fatalf("expected serverInfo.version=%q, got %#v", ServerVersion, info["version"])
+	}
+}
+
 func TestHandle_SemanticTokensFullReturnsData(t *testing.T) {
 	var out bytes.Buffer
 	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))

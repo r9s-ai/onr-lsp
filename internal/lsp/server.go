@@ -14,6 +14,8 @@ import (
 	dslconfig "github.com/r9s-ai/open-next-router/onr-core/pkg/dslconfig"
 )
 
+var ServerVersion = "dev"
+
 type Server struct {
 	in     *bufio.Reader
 	out    io.Writer
@@ -230,7 +232,7 @@ func (s *Server) handleInitialize(id *json.RawMessage) error {
 		},
 		ServerInfo: serverInfo{
 			Name:    "onr-lsp",
-			Version: "0.1.0",
+			Version: ServerVersion,
 		},
 	}
 	return s.reply(id, res)

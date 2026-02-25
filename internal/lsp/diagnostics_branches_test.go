@@ -64,3 +64,16 @@ func TestDiagnostics_MissingSemicolonAtEOF(t *testing.T) {
 		t.Fatalf("expected missing semicolon at EOF diagnostic, got: %+v", diags)
 	}
 }
+
+func TestDiagnostics_BalanceExpressionDirective_NoFalseUnknown(t *testing.T) {
+	text := "provider \"x\" {\n  defaults {\n    balance {\n      balance_mode custom;\n      path \"/v1/credits\";\n      balance_expr = $.data.total_credits - $.data.total_usage;\n      used_path \"$.data.total_usage\";\n      balance_unit USD;\n    }\n  }\n}\n"
+	diags := analyze(text)
+	for _, d := range diags {
+		if strings.Contains(d.Message, "unknown directive in balance block: data.total_credits") {
+			t.Fatalf("unexpected false unknown-directive diagnostic: %+v", diags)
+		}
+		if strings.Contains(d.Message, "expected '{' after balance") {
+			t.Fatalf("unexpected false block diagnostic for balance expression: %+v", diags)
+		}
+	}
+}

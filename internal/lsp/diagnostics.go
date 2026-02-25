@@ -298,7 +298,7 @@ func initDirectiveSpecsFromMetadata() {
 		specs := make(map[string]directiveSpec, len(names))
 		for _, name := range names {
 			spec := directiveSpec{name: name}
-			if _, isBlock := blockKeywordSet[name]; isBlock {
+			if _, isBlock := blockKeywordSet[name]; isBlock && name != block {
 				spec.block = true
 				spec.parseHeaderUntilBrace = name == "match"
 				spec.sub = buildBlockSpecs(name, visiting)
