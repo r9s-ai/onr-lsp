@@ -34,3 +34,33 @@ Then run Extension Development Host in VSCode (`F5`) and set:
 
 - `onrLsp.serverPath`: absolute path of your server binary, for example:
   - `/data/code/github/edgefn/next-router/open-next-router/onr-lsp/bin/onr-lsp`
+- The language client attaches to provider files by default:
+  - `config/providers/*.conf`
+
+Runtime resolution order:
+
+1. `onrLsp.serverPath` (if configured)
+2. bundled binary inside extension (`bin/<platform>-<arch>/onr-lsp`)
+3. `onr-lsp` from system `PATH`
+
+## GitHub Actions Auto Publish
+
+Workflow file:
+
+- `.github/workflows/publish-vscode.yml`
+
+Behavior:
+
+- Trigger: push to `main` when `vscode/**` changes.
+- Runs `go test ./...` and extension compile.
+- Builds bundled `onr-lsp` binaries for Linux/macOS/Windows (x64/arm64).
+- Publishes extension via `npx vsce publish`.
+
+Required repository secret:
+
+- `VSCE_PAT`: Visual Studio Marketplace Personal Access Token.
+
+Important:
+
+- `vsce publish` requires a new extension version each time.
+- Bump `vscode/package.json` `version` before merging to `main`.

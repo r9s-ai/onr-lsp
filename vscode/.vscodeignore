@@ -8,6 +8,8 @@
 src/**
 tsconfig.json
 package-lock.json
+node_modules/**
+out/*.map
 
 # Local artifacts
 node_modules/.bin/**

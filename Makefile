@@ -1,8 +1,15 @@
 .PHONY: help build run test fmt tidy clean \
-	vscode-install vscode-compile vscode-watch vscode-package vscode-release-check
+	vscode-install vscode-compile vscode-watch vscode-package vscode-release-check vscode-bundle-bins
 
 BIN_DIR := bin
 LSP_BIN := $(BIN_DIR)/onr-lsp
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
+LDFLAGS := -s -w \
+	-X main.Version=$(VERSION) \
+	-X main.Commit=$(COMMIT) \
+	-X main.BuildDate=$(BUILD_DATE)
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -12,10 +19,10 @@ help: ## Show this help message
 
 build: ## Build ONR LSP server binary
 	mkdir -p $(BIN_DIR)
-	go build -o $(LSP_BIN) ./cmd/onr-lsp
+	go build -ldflags "$(LDFLAGS)" -o $(LSP_BIN) ./cmd/onr-lsp
 
 run: ## Run ONR LSP server (stdio)
-	go run ./cmd/onr-lsp
+	go run -ldflags "$(LDFLAGS)" ./cmd/onr-lsp
 
 test: ## Run Go tests
 	go test ./...
@@ -39,10 +46,20 @@ vscode-compile: ## Compile VSCode client extension
 vscode-watch: ## Watch-compile VSCode client extension
 	cd vscode && npm run watch
 
-vscode-package: ## Package VSCode client extension (.vsix)
+vscode-bundle-bins: ## Build bundled onr-lsp binaries for VSCode extension
+	rm -rf vscode/bin
+	mkdir -p vscode/bin/linux-x64 vscode/bin/linux-arm64 vscode/bin/darwin-x64 vscode/bin/darwin-arm64 vscode/bin/win32-x64 vscode/bin/win32-arm64
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o vscode/bin/linux-x64/onr-lsp ./cmd/onr-lsp
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "$(LDFLAGS)" -o vscode/bin/linux-arm64/onr-lsp ./cmd/onr-lsp
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o vscode/bin/darwin-x64/onr-lsp ./cmd/onr-lsp
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "$(LDFLAGS)" -o vscode/bin/darwin-arm64/onr-lsp ./cmd/onr-lsp
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o vscode/bin/win32-x64/onr-lsp.exe ./cmd/onr-lsp
+	CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -trimpath -ldflags "$(LDFLAGS)" -o vscode/bin/win32-arm64/onr-lsp.exe ./cmd/onr-lsp
+
+vscode-package: vscode-bundle-bins ## Package VSCode client extension (.vsix)
 	cd vscode && npm run package
 
-vscode-release-check: ## Release pre-check for VSCode extension (compile + package listing)
+vscode-release-check: vscode-bundle-bins ## Release pre-check for VSCode extension (compile + package listing)
 	cd vscode && npm run compile
 	cd vscode && npx vsce ls --tree
 	cd vscode && npm run package

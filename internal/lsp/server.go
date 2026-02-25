@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	dslconfig "github.com/r9s-ai/open-next-router/onr-core/pkg/dslconfig"
 )
 
 type Server struct {
@@ -40,7 +42,7 @@ type inboundMessage struct {
 type responseMessage struct {
 	JSONRPC string      `json:"jsonrpc"`
 	ID      interface{} `json:"id,omitempty"`
-	Result  interface{} `json:"result,omitempty"`
+	Result  interface{} `json:"result"`
 	Error   *respError  `json:"error,omitempty"`
 }
 
@@ -251,8 +253,8 @@ func (s *Server) handleHover(id *json.RawMessage, params json.RawMessage) error 
 	if word == "" {
 		return s.reply(id, nil)
 	}
-
-	doc, ok := hoverDocs[word]
+	block := currentCompletionBlock(text, p.Position)
+	doc, ok := dslconfig.DirectiveHoverInBlock(word, block)
 	if !ok {
 		return s.reply(id, nil)
 	}
@@ -287,10 +289,10 @@ func (s *Server) reply(id *json.RawMessage, result interface{}) error {
 	if err := json.Unmarshal(*id, &idVal); err != nil {
 		idVal = string(*id)
 	}
-	resp := responseMessage{
-		JSONRPC: "2.0",
-		ID:      idVal,
-		Result:  result,
+	resp := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      idVal,
+		"result":  result,
 	}
 	return writeMessage(s.out, resp)
 }
@@ -303,10 +305,10 @@ func (s *Server) replyError(id *json.RawMessage, code int, msg string) error {
 	if err := json.Unmarshal(*id, &idVal); err != nil {
 		idVal = string(*id)
 	}
-	resp := responseMessage{
-		JSONRPC: "2.0",
-		ID:      idVal,
-		Error: &respError{
+	resp := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      idVal,
+		"error": &respError{
 			Code:    code,
 			Message: msg,
 		},
@@ -366,61 +368,26 @@ func writeMessage(w io.Writer, payload interface{}) error {
 	return err
 }
 
-var reqMapModes = []string{
-	"openai_chat_to_openai_responses",
-	"openai_chat_to_anthropic_messages",
-	"openai_chat_to_gemini_generate_content",
-	"anthropic_to_openai_chat",
-	"gemini_to_openai_chat",
-}
-
-var respMapModes = []string{
-	"openai_responses_to_openai_chat",
-	"anthropic_to_openai_chat",
-	"gemini_to_openai_chat",
-	"openai_to_anthropic_messages",
-	"openai_to_gemini_chat",
-	"openai_to_gemini_generate_content",
-}
-
-var sseParseModes = []string{
-	"openai_responses_to_openai_chat_chunks",
-	"anthropic_to_openai_chunks",
-	"openai_to_anthropic_chunks",
-	"openai_to_gemini_chunks",
-	"gemini_to_openai_chat_chunks",
-}
-
 func complete(text string, pos Position) []CompletionItem {
 	line := lineAt(text, pos.Line)
 	prefix := line
 	if pos.Character >= 0 && pos.Character <= len(line) {
 		prefix = line[:pos.Character]
 	}
+	block := currentCompletionBlock(text, pos)
+
 	dir, dirPrefix, ok := modeCompletionPrefix(prefix)
-	if !ok {
-		return nil
+	if ok && directiveAllowedInPhase(dir, block) {
+		return completionItemsFromValues(modeListByDirective(dir), dirPrefix, dir+" mode", "Built-in ONR mapping mode.", 3)
 	}
 
-	modes := modeListByDirective(dir)
-	items := make([]CompletionItem, 0, len(modes))
-	for _, mode := range modes {
-		if dirPrefix != "" && !strings.HasPrefix(mode, dirPrefix) {
-			continue
-		}
-		items = append(items, CompletionItem{
-			Label:         mode,
-			Kind:          3,
-			Detail:        dir + " mode",
-			Documentation: "Built-in ONR mapping mode.",
-		})
-	}
-	sort.Slice(items, func(i, j int) bool { return items[i].Label < items[j].Label })
-	return items
+	wordPrefix := currentWordPrefix(prefix)
+	dirs := directiveListByBlock(block)
+	return completionItemsFromValues(dirs, wordPrefix, "directive", "ONR DSL directive.", 14)
 }
 
 func modeCompletionPrefix(linePrefix string) (directive string, prefix string, ok bool) {
-	for _, dir := range []string{"req_map", "resp_map", "sse_parse"} {
+	for _, dir := range []string{"req_map", "resp_map", "sse_parse", "error_map", "usage_extract", "finish_reason_extract", "oauth_mode", "balance_mode", "models_mode"} {
 		if pfx, ok := directiveCompletionPrefix(linePrefix, dir); ok {
 			return dir, pfx, true
 		}
@@ -431,6 +398,9 @@ func modeCompletionPrefix(linePrefix string) (directive string, prefix string, o
 func directiveCompletionPrefix(linePrefix, directive string) (string, bool) {
 	idx := strings.LastIndex(linePrefix, directive)
 	if idx < 0 {
+		return "", false
+	}
+	if idx > 0 && isWordChar(linePrefix[idx-1]) {
 		return "", false
 	}
 	after := linePrefix[idx+len(directive):]
@@ -444,32 +414,136 @@ func directiveCompletionPrefix(linePrefix, directive string) (string, bool) {
 }
 
 func modeListByDirective(directive string) []string {
+	return dslconfig.ModesByDirective(directive)
+}
+
+func directiveAllowedInPhase(directive, phase string) bool {
 	switch directive {
 	case "req_map":
-		return reqMapModes
-	case "resp_map":
-		return respMapModes
-	case "sse_parse":
-		return sseParseModes
+		return phase == "request"
+	case "resp_map", "sse_parse":
+		return phase == "response"
+	case "error_map":
+		return phase == "error"
+	case "usage_extract", "finish_reason_extract":
+		return phase == "metrics"
+	case "oauth_mode":
+		return phase == "auth"
+	case "balance_mode":
+		return phase == "balance"
+	case "models_mode":
+		return phase == "models"
 	default:
-		return nil
+		return true
 	}
 }
 
-var hoverDocs = map[string]string{
-	"provider":        "`provider \"name\" { ... }`\n\nDefines one provider DSL block. File name should match provider name.",
-	"defaults":        "`defaults { ... }`\n\nDefault phases shared by all `match` rules unless overridden.",
-	"match":           "`match api = \"...\" [stream = true|false] { ... }`\n\nRoute rule. First match wins.",
-	"upstream_config": "`upstream_config { base_url = \"...\"; }`\n\nProvider-level upstream base URL config.",
-	"auth":            "`auth { ... }`\n\nAuthentication directives for upstream requests.",
-	"request":         "`request { ... }`\n\nRequest rewrite/transform directives.",
-	"upstream":        "`upstream { ... }`\n\nUpstream path/query routing directives.",
-	"response":        "`response { ... }`\n\nDownstream response mapping/transformation directives.",
-	"error":           "`error { error_map <mode>; }`\n\nNormalize upstream error payloads.",
-	"metrics":         "`metrics { ... }`\n\nToken usage and finish reason extraction rules.",
-	"req_map":         "`req_map <mode>;`\n\nMap request JSON between API schemas.",
-	"resp_map":        "`resp_map <mode>;`\n\nMap non-stream response JSON.",
-	"sse_parse":       "`sse_parse <mode>;`\n\nMap streaming SSE events/chunks.",
+func currentCompletionBlock(text string, pos Position) string {
+	stack := currentBlockStack(text, pos)
+	if len(stack) == 0 {
+		return "_top"
+	}
+	return stack[len(stack)-1]
+}
+
+func currentBlockStack(text string, pos Position) []string {
+	toks := lex(text)
+	stack := make([]string, 0, 8)
+	pending := ""
+	lockedPending := false
+
+	for i := 0; i < len(toks); i++ {
+		tok := toks[i]
+		if tokenAfterPosition(tok, pos) {
+			break
+		}
+		switch tok.kind {
+		case tokIdent:
+			if isBlockKeyword(tok.text) {
+				if tok.text == "match" {
+					pending = tok.text
+					lockedPending = true
+					continue
+				}
+				if !lockedPending {
+					pending = tok.text
+				}
+			}
+		case tokLBrace:
+			name := pending
+			if name == "" {
+				name = "unknown"
+			}
+			stack = append(stack, name)
+			pending = ""
+			lockedPending = false
+		case tokRBrace:
+			if len(stack) > 0 {
+				stack = stack[:len(stack)-1]
+			}
+			pending = ""
+			lockedPending = false
+		case tokSemicolon:
+			if !lockedPending {
+				pending = ""
+			}
+		}
+	}
+	return stack
+}
+
+func isBlockKeyword(s string) bool {
+	switch s {
+	case "provider", "defaults", "match", "upstream_config", "upstream", "auth", "request", "response", "error", "metrics", "balance", "models":
+		return true
+	default:
+		return false
+	}
+}
+
+func tokenAfterPosition(tok token, pos Position) bool {
+	if tok.line > pos.Line {
+		return true
+	}
+	if tok.line < pos.Line {
+		return false
+	}
+	return tok.col > pos.Character
+}
+
+func currentWordPrefix(linePrefix string) string {
+	if linePrefix == "" {
+		return ""
+	}
+	i := len(linePrefix) - 1
+	for i >= 0 && isWordChar(linePrefix[i]) {
+		i--
+	}
+	return linePrefix[i+1:]
+}
+
+func completionItemsFromValues(values []string, prefix, detail, docs string, kind int) []CompletionItem {
+	if len(values) == 0 {
+		return nil
+	}
+	items := make([]CompletionItem, 0, len(values))
+	for _, v := range values {
+		if prefix != "" && !strings.HasPrefix(v, prefix) {
+			continue
+		}
+		items = append(items, CompletionItem{
+			Label:         v,
+			Kind:          kind,
+			Detail:        detail,
+			Documentation: docs,
+		})
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].Label < items[j].Label })
+	return items
+}
+
+func directiveListByBlock(block string) []string {
+	return dslconfig.DirectivesByBlock(block)
 }
 
 func wordAt(text string, pos Position) (string, Range) {

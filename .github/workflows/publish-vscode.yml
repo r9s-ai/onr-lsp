@@ -1,0 +1,84 @@
+name: Publish VSCode Extension
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "vscode/**"
+      - ".github/workflows/publish-vscode.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run Go tests
+        run: go test ./...
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: vscode/package-lock.json
+
+      - name: Build bundled onr-lsp binaries
+        run: |
+          set -euo pipefail
+          EXT_VERSION="$(node -p "require('./vscode/package.json').version")"
+          COMMIT="$(git rev-parse --short HEAD)"
+          BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+          LDFLAGS="-s -w -X main.Version=${EXT_VERSION} -X main.Commit=${COMMIT} -X main.BuildDate=${BUILD_DATE}"
+
+          rm -rf vscode/bin
+          mkdir -p vscode/bin
+
+          build_target() {
+            local goos="$1"
+            local goarch="$2"
+            local outdir="$3"
+            local exe="$4"
+            mkdir -p "${outdir}"
+            CGO_ENABLED=0 GOOS="${goos}" GOARCH="${goarch}" go build -trimpath -ldflags "${LDFLAGS}" -o "${outdir}/${exe}" ./cmd/onr-lsp
+          }
+
+          build_target linux amd64 "vscode/bin/linux-x64" "onr-lsp"
+          build_target linux arm64 "vscode/bin/linux-arm64" "onr-lsp"
+          build_target darwin amd64 "vscode/bin/darwin-x64" "onr-lsp"
+          build_target darwin arm64 "vscode/bin/darwin-arm64" "onr-lsp"
+          build_target windows amd64 "vscode/bin/win32-x64" "onr-lsp.exe"
+          build_target windows arm64 "vscode/bin/win32-arm64" "onr-lsp.exe"
+
+      - name: Install extension dependencies
+        working-directory: vscode
+        run: npm ci
+
+      - name: Compile extension
+        working-directory: vscode
+        run: npm run compile
+
+      - name: Ensure VSCE token exists
+        run: |
+          if [ -z "${VSCE_PAT}" ]; then
+            echo "VSCE_PAT secret is not configured."
+            exit 1
+          fi
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Publish extension to Marketplace
+        working-directory: vscode
+        run: npx vsce publish -p "${VSCE_PAT}"
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}

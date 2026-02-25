@@ -43,6 +43,18 @@ func (p *parser) parseFile() {
 			p.next()
 			continue
 		}
+		if tok.text == "syntax" {
+			p.next() // syntax
+			v := p.next()
+			if v.kind != tokString {
+				p.add(v, "expected syntax version string literal")
+			}
+			semi := p.next()
+			if semi.kind != tokSemicolon {
+				p.add(semi, "expected ';' after syntax directive")
+			}
+			continue
+		}
 		if tok.text != "provider" {
 			p.add(tok, "unknown top-level directive: "+tok.text)
 			p.skipStmtOrBlock()
@@ -75,7 +87,11 @@ func (p *parser) parseBlock(name string, directives map[string]directiveSpec) {
 		case tokIdent:
 			spec, ok := directives[tok.text]
 			if !ok {
-				p.add(tok, "unknown directive in "+name+" block: "+tok.text)
+				if allowed := allowedBlocksForDirective(tok.text); len(allowed) > 0 {
+					p.add(tok, "directive "+tok.text+" is not allowed in "+name+" block; allowed in: "+strings.Join(allowed, ", ")+"; quick fix: move it into "+allowed[0]+" { ... }")
+				} else {
+					p.add(tok, "unknown directive in "+name+" block: "+tok.text)
+				}
 				p.skipStmtOrBlock()
 				continue
 			}
@@ -309,6 +325,34 @@ var metricsDirectives = map[string]directiveSpec{
 	"cache_write_tokens_path": {name: "cache_write_tokens_path"},
 	"finish_reason_extract":   {name: "finish_reason_extract"},
 	"finish_reason_path":      {name: "finish_reason_path"},
+}
+
+func allowedBlocksForDirective(d string) []string {
+	switch d {
+	case "upstream_config":
+		return []string{"defaults"}
+	case "upstream":
+		return []string{"match"}
+	case "auth_bearer", "auth_header_key", "auth_oauth_bearer", "oauth_mode", "oauth_token_url", "oauth_client_id", "oauth_client_secret", "oauth_refresh_token", "oauth_scope", "oauth_audience", "oauth_method", "oauth_content_type", "oauth_token_path", "oauth_expires_in_path", "oauth_token_type_path", "oauth_timeout_ms", "oauth_refresh_skew_sec", "oauth_fallback_ttl_sec", "oauth_form":
+		return []string{"auth"}
+	case "set_header", "del_header", "model_map", "model_map_default", "req_map":
+		return []string{"request"}
+	case "resp_passthrough", "resp_map", "sse_parse", "sse_json_del_if":
+		return []string{"response"}
+	case "error_map":
+		return []string{"error"}
+	case "usage_extract", "input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens", "total_tokens", "input_tokens_path", "output_tokens_path", "cache_read_tokens_path", "cache_write_tokens_path", "finish_reason_extract", "finish_reason_path":
+		return []string{"metrics"}
+	case "set_path", "set_query", "del_query":
+		return []string{"upstream"}
+	case "base_url":
+		return []string{"upstream_config"}
+	case "provider", "defaults", "match", "auth", "request", "response", "error", "metrics", "balance", "models":
+		// block keywords are handled by parser; keep unknown behavior where syntax doesn't match.
+		return nil
+	default:
+		return nil
+	}
 }
 
 func lex(input string) []token {

@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/r9s-ai/open-next-router/onr-core/pkg/dslconfig"
+	dslconfig "github.com/r9s-ai/open-next-router/onr-core/pkg/dslconfig"
 )
 
 var scannerErrRe = regexp.MustCompile(`^(.+):(\d+):(\d+):\s*(.+)$`)
@@ -19,6 +19,7 @@ var providerNameRe = regexp.MustCompile(`(?m)\bprovider\s+"([^"]+)"`)
 func collectDiagnostics(uri, text string) []Diagnostic {
 	out := make([]Diagnostic, 0, 8)
 	out = append(out, analyze(text)...)
+	out = append(out, analyzeSemanticModes(text)...)
 	out = append(out, analyzeSemantic(uri, text)...)
 	return dedupeDiagnostics(out)
 }
@@ -51,6 +52,84 @@ func analyzeSemantic(uri, text string) []Diagnostic {
 		return []Diagnostic{newDiagnostic(max(line-1, 0), max(col-1, 0), strings.TrimSpace(m[4]))}
 	}
 	return []Diagnostic{newDiagnostic(0, 0, msg)}
+}
+
+func analyzeSemanticModes(text string) []Diagnostic {
+	toks := lex(text)
+	if len(toks) == 0 {
+		return nil
+	}
+	out := make([]Diagnostic, 0, 8)
+	for i := 0; i < len(toks); i++ {
+		tok := toks[i]
+		if tok.kind != tokIdent {
+			continue
+		}
+		if !isStatementStart(toks, i) {
+			continue
+		}
+		allowed := allowedModesForDirective(tok.text)
+		if len(allowed) == 0 {
+			continue
+		}
+		modeTok, ok := nextModeToken(toks, i+1)
+		if !ok {
+			continue
+		}
+		mode := normalizeModeToken(modeTok)
+		if mode == "" {
+			continue
+		}
+		if _, ok := allowed[strings.ToLower(mode)]; ok {
+			continue
+		}
+		out = append(out, newDiagnostic(modeTok.line, modeTok.col, fmt.Sprintf("unsupported %s mode %q", tok.text, mode)))
+	}
+	return out
+}
+
+func isStatementStart(toks []token, idx int) bool {
+	if idx == 0 {
+		return true
+	}
+	prev := toks[idx-1]
+	switch prev.kind {
+	case tokLBrace, tokSemicolon, tokRBrace:
+		return true
+	default:
+		return false
+	}
+}
+
+func nextModeToken(toks []token, idx int) (token, bool) {
+	for i := idx; i < len(toks); i++ {
+		switch toks[i].kind {
+		case tokIdent, tokString:
+			return toks[i], true
+		case tokSemicolon, tokLBrace, tokRBrace, tokEOF:
+			return token{}, false
+		}
+	}
+	return token{}, false
+}
+
+func normalizeModeToken(tok token) string {
+	if tok.kind == tokString {
+		return strings.Trim(strings.TrimSpace(tok.text), "\"")
+	}
+	return strings.TrimSpace(tok.text)
+}
+
+func allowedModesForDirective(d string) map[string]struct{} {
+	return setFromSlice(dslconfig.ModesByDirective(d))
+}
+
+func setFromSlice(v []string) map[string]struct{} {
+	out := make(map[string]struct{}, len(v))
+	for _, s := range v {
+		out[strings.ToLower(strings.TrimSpace(s))] = struct{}{}
+	}
+	return out
 }
 
 func writeTempProviderFile(uri, content string) (string, error) {

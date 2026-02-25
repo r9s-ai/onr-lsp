@@ -2,7 +2,7 @@
   "name": "onr-dsl",
   "displayName": "ONR DSL",
   "description": "VSCode client for ONR DSL Language Server",
-  "version": "0.1.0",
+  "version": "0.1.6",
   "publisher": "r9s-ai",
   "repository": {
     "type": "git",
@@ -13,9 +13,6 @@
   },
   "categories": [
     "Programming Languages"
-  ],
-  "activationEvents": [
-    "onLanguage:onr-dsl"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -37,20 +34,22 @@
       "properties": {
         "onrLsp.serverPath": {
           "type": "string",
-          "default": "onr-lsp",
-          "description": "Path to onr-lsp server binary."
+          "default": "",
+          "description": "Optional path/command to onr-lsp binary. Empty means use bundled binary first, then PATH."
         }
       }
     }
   },
   "scripts": {
-    "compile": "tsc -p .",
-    "watch": "tsc -w -p .",
+    "typecheck": "tsc --noEmit -p .",
+    "compile": "npm run typecheck && npx esbuild ./src/extension.ts --bundle --platform=node --target=node20 --format=cjs --external:vscode --outfile=out/extension.js",
+    "watch": "npx esbuild ./src/extension.ts --bundle --platform=node --target=node20 --format=cjs --external:vscode --outfile=out/extension.js --watch",
     "package": "vsce package"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",
     "@types/vscode": "^1.89.0",
+    "esbuild": "^0.25.0",
     "typescript": "^5.4.5",
     "@vscode/vsce": "^3.2.2"
   },
