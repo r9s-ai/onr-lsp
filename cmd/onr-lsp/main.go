@@ -2,12 +2,9 @@ package main
 
 import (
 	"fmt"
-	"io"
-	"log"
 	"os"
-	"strings"
 
-	"github.com/r9s-ai/onr-lsp/internal/lsp"
+	"github.com/r9s-ai/onr-lsp/cli"
 )
 
 var (
@@ -17,40 +14,18 @@ var (
 )
 
 func main() {
-	if maybePrintVersion(os.Args[1:], os.Stdout) {
-		return
+	opts := cli.Options{
+		Stdin:  os.Stdin,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+		BuildInfo: cli.BuildInfo{
+			Version:   Version,
+			Commit:    Commit,
+			BuildDate: BuildDate,
+		},
 	}
-	if handled, err := maybeRunFormat(os.Args[1:], os.Stdin, os.Stdout, os.Stderr); handled {
-		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "onr-lsp format error: %v\n", err)
-			os.Exit(2)
-		}
-		return
-	}
-	lsp.ServerVersion = Version
-	logger := log.New(os.Stderr, "onr-lsp: ", log.LstdFlags|log.Lshortfile)
-	srv := lsp.NewServer(os.Stdin, os.Stdout, logger)
-	if err := srv.Run(); err != nil {
-		logger.Fatalf("server exited with error: %v", err)
-	}
-}
-
-func maybePrintVersion(args []string, w io.Writer) bool {
-	if len(args) == 0 {
-		return false
-	}
-	if !isVersionArg(args[0]) {
-		return false
-	}
-	fmt.Fprintf(w, "onr-lsp version=%s commit=%s build_date=%s\n", Version, Commit, strings.TrimSpace(BuildDate))
-	return true
-}
-
-func isVersionArg(arg string) bool {
-	switch strings.TrimSpace(arg) {
-	case "--version", "-version", "-v", "version":
-		return true
-	default:
-		return false
+	if err := cli.Run(os.Args[1:], opts); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
 	}
 }
