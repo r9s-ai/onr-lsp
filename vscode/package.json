@@ -2,7 +2,7 @@
   "name": "onr-dsl",
   "displayName": "ONR DSL",
   "description": "VSCode client for ONR DSL Language Server",
-  "version": "0.2.0",
+  "version": "0.2.6",
   "publisher": "r9s-ai",
   "repository": {
     "type": "git",

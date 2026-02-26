@@ -16,6 +16,8 @@ VS Code extension for editing Open Next Router (ONR) provider DSL (`*.conf`).
 - Diagnostics
   - Basic syntax diagnostics (missing braces, unknown directives)
   - Semantic diagnostics for invalid mapper modes
+- Formatting
+  - Document formatting via `textDocument/formatting` from `onr-lsp`
 
 ## Scope
 
@@ -44,6 +46,22 @@ From `onr-lsp/`:
 ```bash
 make vscode-compile
 make vscode-package
+```
+
+## Format CLI (Server Binary Test)
+
+```bash
+# Build onr-lsp binary first
+go build -o bin/onr-lsp ./cmd/onr-lsp
+
+# Read from stdin, write formatted result to stdout
+cat config/providers/openai.conf | ./bin/onr-lsp format
+
+# Format one file, output to stdout
+./bin/onr-lsp format config/providers/openai.conf
+
+# Format one file in-place
+./bin/onr-lsp format --write config/providers/openai.conf
 ```
 
 ## Notes

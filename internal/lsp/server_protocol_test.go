@@ -188,6 +188,9 @@ func TestHandle_InitializeIncludesSemanticTokensCapability(t *testing.T) {
 	if _, ok := caps["semanticTokensProvider"]; !ok {
 		t.Fatalf("expected semanticTokensProvider in capabilities, got: %#v", caps)
 	}
+	if got, ok := caps["documentFormattingProvider"].(bool); !ok || !got {
+		t.Fatalf("expected documentFormattingProvider=true in capabilities, got: %#v", caps["documentFormattingProvider"])
+	}
 }
 
 func TestHandle_InitializeUsesServerVersion(t *testing.T) {
@@ -286,6 +289,112 @@ func TestHandle_InvalidSemanticTokensParamsReplyError(t *testing.T) {
 	}
 	if msgs[0]["error"] == nil {
 		t.Fatalf("expected error response for invalid semantic tokens params")
+	}
+}
+
+func TestHandle_FormattingReturnsTextEdits(t *testing.T) {
+	var out bytes.Buffer
+	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))
+	uri := "file:///tmp/fmt.conf"
+	s.docs[uri] = "provider \"x\" {\ndefaults {\nrequest {\nreq_map openai_chat_to_openai_responses;\n}\n}\n}\n"
+
+	params, err := json.Marshal(formattingParams{
+		TextDocument: textDocumentIdentifier{URI: uri},
+		Options: formattingOptions{
+			TabSize:      2,
+			InsertSpaces: true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal formatting params: %v", err)
+	}
+
+	rawID := json.RawMessage("15")
+	if err := s.handle(inboundMessage{
+		JSONRPC: "2.0",
+		ID:      &rawID,
+		Method:  "textDocument/formatting",
+		Params:  params,
+	}); err != nil {
+		t.Fatalf("handle formatting: %v", err)
+	}
+
+	msgs := readAllLSPMessages(t, out.Bytes())
+	if len(msgs) != 1 {
+		t.Fatalf("expected one formatting response, got %d", len(msgs))
+	}
+	if msgs[0]["error"] != nil {
+		t.Fatalf("expected formatting result, got error: %#v", msgs[0]["error"])
+	}
+
+	edits, ok := msgs[0]["result"].([]any)
+	if !ok {
+		t.Fatalf("expected text edits array, got: %#v", msgs[0]["result"])
+	}
+	if len(edits) != 1 {
+		t.Fatalf("expected one full-document edit, got: %#v", edits)
+	}
+}
+
+func TestHandle_FormattingNoChangesReturnsEmptyEdits(t *testing.T) {
+	var out bytes.Buffer
+	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))
+	uri := "file:///tmp/fmt-ok.conf"
+	s.docs[uri] = "provider \"x\" {\n  defaults {\n    request {\n      req_map openai_chat_to_openai_responses;\n    }\n  }\n}\n"
+
+	params, err := json.Marshal(formattingParams{
+		TextDocument: textDocumentIdentifier{URI: uri},
+		Options: formattingOptions{
+			TabSize:      2,
+			InsertSpaces: true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal formatting params: %v", err)
+	}
+
+	rawID := json.RawMessage("16")
+	if err := s.handle(inboundMessage{
+		JSONRPC: "2.0",
+		ID:      &rawID,
+		Method:  "textDocument/formatting",
+		Params:  params,
+	}); err != nil {
+		t.Fatalf("handle formatting: %v", err)
+	}
+
+	msgs := readAllLSPMessages(t, out.Bytes())
+	if len(msgs) != 1 {
+		t.Fatalf("expected one formatting response, got %d", len(msgs))
+	}
+	edits, ok := msgs[0]["result"].([]any)
+	if !ok {
+		t.Fatalf("expected text edits array, got: %#v", msgs[0]["result"])
+	}
+	if len(edits) != 0 {
+		t.Fatalf("expected no edits for already formatted content, got: %#v", edits)
+	}
+}
+
+func TestHandle_InvalidFormattingParamsReplyError(t *testing.T) {
+	var out bytes.Buffer
+	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))
+	rawID := json.RawMessage("17")
+	if err := s.handle(inboundMessage{
+		JSONRPC: "2.0",
+		ID:      &rawID,
+		Method:  "textDocument/formatting",
+		Params:  json.RawMessage(`{"bad":`),
+	}); err != nil {
+		t.Fatalf("handle formatting should not return error: %v", err)
+	}
+
+	msgs := readAllLSPMessages(t, out.Bytes())
+	if len(msgs) != 1 {
+		t.Fatalf("expected one response, got %d", len(msgs))
+	}
+	if msgs[0]["error"] == nil {
+		t.Fatalf("expected error response for invalid formatting params")
 	}
 }
 

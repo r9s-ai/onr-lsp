@@ -65,6 +65,7 @@ type serverCapabilities struct {
 	TextDocumentSync       int                    `json:"textDocumentSync"`
 	CompletionProvider     *completionProvider    `json:"completionProvider,omitempty"`
 	HoverProvider          bool                   `json:"hoverProvider"`
+	DocumentFormatting     bool                   `json:"documentFormattingProvider"`
 	SemanticTokensProvider *semanticTokensOptions `json:"semanticTokensProvider,omitempty"`
 }
 
@@ -109,6 +110,16 @@ type hoverParams struct {
 	Position     Position               `json:"position"`
 }
 
+type formattingOptions struct {
+	TabSize      int  `json:"tabSize"`
+	InsertSpaces bool `json:"insertSpaces"`
+}
+
+type formattingParams struct {
+	TextDocument textDocumentIdentifier `json:"textDocument"`
+	Options      formattingOptions      `json:"options"`
+}
+
 type Position struct {
 	Line      int `json:"line"`
 	Character int `json:"character"`
@@ -141,6 +152,11 @@ type CompletionItem struct {
 	Kind          int    `json:"kind,omitempty"`
 	Detail        string `json:"detail,omitempty"`
 	Documentation string `json:"documentation,omitempty"`
+}
+
+type TextEdit struct {
+	Range   Range  `json:"range"`
+	NewText string `json:"newText"`
 }
 
 func (s *Server) Run() error {
@@ -203,6 +219,8 @@ func (s *Server) handle(msg inboundMessage) error {
 		return s.handleCompletion(msg.ID, msg.Params)
 	case "textDocument/hover":
 		return s.handleHover(msg.ID, msg.Params)
+	case "textDocument/formatting":
+		return s.handleFormatting(msg.ID, msg.Params)
 	case "textDocument/semanticTokens/full":
 		return s.handleSemanticTokensFull(msg.ID, msg.Params)
 	default:
@@ -221,7 +239,8 @@ func (s *Server) handleInitialize(id *json.RawMessage) error {
 				ResolveProvider:   false,
 				TriggerCharacters: []string{" ", "_"},
 			},
-			HoverProvider: true,
+			HoverProvider:      true,
+			DocumentFormatting: true,
 			SemanticTokensProvider: &semanticTokensOptions{
 				Legend: semanticTokensLegend{
 					TokenTypes:     semanticTokenLegendTypes,
@@ -280,6 +299,28 @@ func (s *Server) handleSemanticTokensFull(id *json.RawMessage, params json.RawMe
 	}
 	text := s.docs[p.TextDocument.URI]
 	return s.reply(id, semanticTokensFull(text))
+}
+
+func (s *Server) handleFormatting(id *json.RawMessage, params json.RawMessage) error {
+	var p formattingParams
+	if err := json.Unmarshal(params, &p); err != nil {
+		return s.replyError(id, -32602, "invalid params for formatting")
+	}
+	text := s.docs[p.TextDocument.URI]
+	formatted := formatDocument(text, p.Options)
+	if formatted == text {
+		return s.reply(id, []TextEdit{})
+	}
+	edits := []TextEdit{
+		{
+			Range: Range{
+				Start: Position{Line: 0, Character: 0},
+				End:   endPosition(text),
+			},
+			NewText: formatted,
+		},
+	}
+	return s.reply(id, edits)
 }
 
 func (s *Server) publishDiagnostics(uri string) error {

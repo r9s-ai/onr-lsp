@@ -20,6 +20,13 @@ func main() {
 	if maybePrintVersion(os.Args[1:], os.Stdout) {
 		return
 	}
+	if handled, err := maybeRunFormat(os.Args[1:], os.Stdin, os.Stdout, os.Stderr); handled {
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "onr-lsp format error: %v\n", err)
+			os.Exit(2)
+		}
+		return
+	}
 	lsp.ServerVersion = Version
 	logger := log.New(os.Stderr, "onr-lsp: ", log.LstdFlags|log.Lshortfile)
 	srv := lsp.NewServer(os.Stdin, os.Stdout, logger)
