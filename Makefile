@@ -1,4 +1,4 @@
-.PHONY: help build run test fmt tidy clean \
+.PHONY: help build run test fmt tidy clean hooks \
 	vscode-install vscode-version-patch vscode-compile vscode-watch vscode-package vscode-release-check vscode-bundle-bins vscode-generate-syntax vscode-install-vsix
 
 BIN_DIR := bin
@@ -34,6 +34,9 @@ fmt: ## Format Go code
 
 tidy: ## Tidy Go modules
 	$(GO) mod tidy
+
+hooks: ## Run prek hooks on all files
+	prek run --all-files
 
 clean: ## Remove build artifacts
 	rm -rf $(BIN_DIR)/

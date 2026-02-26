@@ -73,6 +73,16 @@ make vscode-compile
 make vscode-package
 ```
 
+## Git Hooks (prek)
+
+```bash
+# install git hooks (force-replace if pre-commit hooks already exist)
+prek install -f
+
+# run all hooks manually
+prek run --all-files
+```
+
 ## Format CLI (Server Binary Test)
 
 ```bash

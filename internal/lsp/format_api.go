@@ -8,8 +8,5 @@ type FormatOptions struct {
 
 // FormatText formats ONR DSL text using stable indentation rules.
 func FormatText(text string, opts FormatOptions) string {
-	return formatDocument(text, formattingOptions{
-		TabSize:      opts.TabSize,
-		InsertSpaces: opts.InsertSpaces,
-	})
+	return formatDocument(text, formattingOptions(opts))
 }
