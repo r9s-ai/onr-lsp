@@ -39,6 +39,13 @@ The extension resolves language server binary in this order:
   - Optional absolute path or command name for `onr-lsp`
   - Keep empty to use bundled binary first
 
+Language defaults provided by this extension:
+
+- `[onr-dsl].editor.defaultFormatter = "r9s-ai.onr-dsl"`
+- `[onr-dsl].editor.formatOnSave = true`
+
+You can still override these defaults in User/Workspace `settings.json`.
+
 ## Build and Package (Repo Local)
 
 From `onr-lsp/`:

@@ -2,7 +2,7 @@
   "name": "onr-dsl",
   "displayName": "ONR DSL",
   "description": "VSCode client for ONR DSL Language Server",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "publisher": "r9s-ai",
   "repository": {
     "type": "git",
@@ -44,6 +44,12 @@
           "default": "",
           "description": "Optional path/command to onr-lsp binary. Empty means use bundled binary first, then PATH."
         }
+      }
+    },
+    "configurationDefaults": {
+      "[onr-dsl]": {
+        "editor.defaultFormatter": "r9s-ai.onr-dsl",
+        "editor.formatOnSave": true
       }
     }
   },
