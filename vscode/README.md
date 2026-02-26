@@ -2,6 +2,8 @@
 
 VS Code extension for editing Open Next Router (ONR) provider DSL (`*.conf`).
 
+![ONR DSL extension preview](https://raw.githubusercontent.com/r9s-ai/onr-lsp/main/preview-image.png)
+
 ## Features
 
 - Syntax highlight
