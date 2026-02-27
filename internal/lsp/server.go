@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	dslconfig "github.com/r9s-ai/open-next-router/onr-core/pkg/dslconfig"
+	"github.com/r9s-ai/open-next-router/onr-core/pkg/dslspec"
 )
 
 var ServerVersion = "dev"
@@ -278,7 +278,7 @@ func (s *Server) handleHover(id *json.RawMessage, params json.RawMessage) error 
 		return s.reply(id, nil)
 	}
 	block := currentCompletionBlock(text, p.Position)
-	doc, ok := dslconfig.DirectiveHoverInBlock(word, block)
+	doc, ok := dslspec.DirectiveHoverInBlock(word, block)
 	if !ok {
 		return s.reply(id, nil)
 	}
@@ -449,7 +449,7 @@ func complete(text string, pos Position) []CompletionItem {
 }
 
 func modeCompletionPrefix(linePrefix string) (directive string, prefix string, ok bool) {
-	for _, dir := range dslconfig.ModeDirectiveNames() {
+	for _, dir := range dslspec.ModeDirectiveNames() {
 		if pfx, ok := directiveCompletionPrefix(linePrefix, dir); ok {
 			return dir, pfx, true
 		}
@@ -476,15 +476,15 @@ func directiveCompletionPrefix(linePrefix, directive string) (string, bool) {
 }
 
 func modeListByDirective(directive string) []string {
-	return dslconfig.ModesByDirective(directive)
+	return dslspec.ModesByDirective(directive)
 }
 
 func enumValuesByDirectiveInBlock(directive, block string) []string {
-	return dslconfig.DirectiveArgEnumValuesInBlock(directive, block, 0)
+	return dslspec.DirectiveArgEnumValuesInBlock(directive, block, 0)
 }
 
 func directiveAllowedInPhase(directive, phase string) bool {
-	allowed := dslconfig.DirectiveAllowedBlocks(directive)
+	allowed := dslspec.DirectiveAllowedBlocks(directive)
 	if len(allowed) == 0 {
 		return true
 	}
@@ -563,7 +563,7 @@ func currentBlockStack(text string, pos Position) []string {
 }
 
 func isBlockKeyword(s string) bool {
-	return dslconfig.IsBlockDirective(s)
+	return dslspec.IsBlockDirective(s)
 }
 
 func tokenAfterPosition(tok token, pos Position) bool {
@@ -608,7 +608,7 @@ func completionItemsFromValues(values []string, prefix, detail, docs string, kin
 }
 
 func directiveListByBlock(block string) []string {
-	return dslconfig.DirectivesByBlock(block)
+	return dslspec.DirectivesByBlock(block)
 }
 
 func wordAt(text string, pos Position) (string, Range) {

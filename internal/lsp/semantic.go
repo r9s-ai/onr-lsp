@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	dslconfig "github.com/r9s-ai/open-next-router/onr-core/pkg/dslconfig"
+	"github.com/r9s-ai/open-next-router/onr-core/pkg/dslspec"
 )
 
 var scannerErrRe = regexp.MustCompile(`^(.+):(\d+):(\d+):\s*(.+)$`)
@@ -131,7 +132,7 @@ func normalizeModeToken(tok token) string {
 }
 
 func allowedModesForDirective(d string) map[string]struct{} {
-	return setFromSlice(dslconfig.ModesByDirective(d))
+	return setFromSlice(dslspec.ModesByDirective(d))
 }
 
 func setFromSlice(v []string) map[string]struct{} {
@@ -294,7 +295,7 @@ func blockHintFromScope(scope string) string {
 	segments := strings.Split(s, ".")
 	for i := len(segments) - 1; i >= 0; i-- {
 		seg := scopeSegmentBase(segments[i])
-		if dslconfig.IsBlockDirective(seg) {
+		if dslspec.IsBlockDirective(seg) {
 			return seg
 		}
 	}

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	dslconfig "github.com/r9s-ai/open-next-router/onr-core/pkg/dslconfig"
+	"github.com/r9s-ai/open-next-router/onr-core/pkg/dslspec"
 )
 
 func TestCompleteReqMapModes(t *testing.T) {
@@ -232,7 +232,7 @@ func TestHoverDocs(t *testing.T) {
 	if word != "sse_parse" {
 		t.Fatalf("expected word sse_parse, got %q", word)
 	}
-	if _, ok := dslconfig.DirectiveHover(word); !ok {
+	if _, ok := dslspec.DirectiveHover(word); !ok {
 		t.Fatalf("expected hover docs for %q", word)
 	}
 }
@@ -243,7 +243,7 @@ func TestHoverDocsForUsageExtract(t *testing.T) {
 	if word != "usage_extract" {
 		t.Fatalf("expected word usage_extract, got %q", word)
 	}
-	if _, ok := dslconfig.DirectiveHover(word); !ok {
+	if _, ok := dslspec.DirectiveHover(word); !ok {
 		t.Fatalf("expected hover docs for %q", word)
 	}
 }

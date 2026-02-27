@@ -3,7 +3,7 @@ package lsp
 import (
 	"strings"
 
-	dslconfig "github.com/r9s-ai/open-next-router/onr-core/pkg/dslconfig"
+	"github.com/r9s-ai/open-next-router/onr-core/pkg/dslspec"
 )
 
 const (
@@ -185,7 +185,7 @@ func classifySemanticSpans(text string) []semanticSpan {
 			}
 			if statementStart {
 				currentDirective = tok.text
-				modePending = len(dslconfig.ModesByDirective(tok.text)) > 0
+				modePending = len(dslspec.ModesByDirective(tok.text)) > 0
 			}
 			prevSig = prevSigOther
 		default:
@@ -217,7 +217,7 @@ func classifyIdentifierType(word, block string, modePending bool) int {
 }
 
 func directiveInBlock(name, block string) bool {
-	for _, d := range dslconfig.DirectivesByBlock(block) {
+	for _, d := range dslspec.DirectivesByBlock(block) {
 		if d == name {
 			return true
 		}

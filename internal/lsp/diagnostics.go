@@ -3,7 +3,7 @@ package lsp
 import (
 	"strings"
 
-	dslconfig "github.com/r9s-ai/open-next-router/onr-core/pkg/dslconfig"
+	"github.com/r9s-ai/open-next-router/onr-core/pkg/dslspec"
 )
 
 type tokenKind int
@@ -251,7 +251,7 @@ func init() {
 }
 
 func initDirectiveSpecsFromMetadata() {
-	meta := dslconfig.DirectiveMetadataList()
+	meta := dslspec.DirectiveMetadataList()
 	knownBlocks := map[string]struct{}{}
 	directiveAllowedInMap = map[string][]string{}
 	seenDirectiveBlocks := map[string]map[string]struct{}{}
@@ -294,7 +294,7 @@ func initDirectiveSpecsFromMetadata() {
 		visiting[block] = true
 		defer delete(visiting, block)
 
-		names := dslconfig.DirectivesByBlock(block)
+		names := dslspec.DirectivesByBlock(block)
 		specs := make(map[string]directiveSpec, len(names))
 		for _, name := range names {
 			spec := directiveSpec{name: name}

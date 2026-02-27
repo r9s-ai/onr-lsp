@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	dslconfig "github.com/r9s-ai/open-next-router/onr-core/pkg/dslconfig"
+	"github.com/r9s-ai/open-next-router/onr-core/pkg/dslspec"
 )
 
 type tmLanguage struct {
@@ -38,7 +38,7 @@ var output = flag.String("output", "vscode/syntaxes/onr.tmLanguage.json", "outpu
 func main() {
 	flag.Parse()
 
-	meta := dslconfig.DirectiveMetadataList()
+	meta := dslspec.DirectiveMetadataList()
 	if len(meta) == 0 {
 		fatalf("directive metadata is empty")
 	}
@@ -48,7 +48,7 @@ func main() {
 		"true":   {},
 		"false":  {},
 	}
-	for _, block := range dslconfig.BlockDirectiveNames() {
+	for _, block := range dslspec.BlockDirectiveNames() {
 		keywordSet[block] = struct{}{}
 	}
 	keywords := setToSortedSlice(keywordSet)
