@@ -68,5 +68,9 @@
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
+  },
+  "overrides": {
+    "undici": "^7.24.0",
+    "picomatch": "^2.3.2"
   }
 }
