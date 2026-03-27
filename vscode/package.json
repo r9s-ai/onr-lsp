@@ -2,7 +2,7 @@
   "name": "onr-dsl",
   "displayName": "ONR DSL",
   "description": "VSCode client for ONR DSL Language Server",
-  "version": "0.2.9",
+  "version": "0.3.0",
   "publisher": "r9s-ai",
   "repository": {
     "type": "git",
@@ -57,7 +57,7 @@
     "typecheck": "tsc --noEmit -p .",
     "compile": "npm run typecheck && npx esbuild ./src/extension.ts --bundle --platform=node --target=node20 --format=cjs --external:vscode --outfile=out/extension.js",
     "watch": "npx esbuild ./src/extension.ts --bundle --platform=node --target=node20 --format=cjs --external:vscode --outfile=out/extension.js --watch",
-    "package": "vsce package"
+    "package": "npm exec vsce package"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",
