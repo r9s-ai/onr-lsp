@@ -12,6 +12,8 @@ func TestAllowedBlocksForDirective(t *testing.T) {
 		{name: "upstream", dir: "upstream", want: []string{"match"}},
 		{name: "auth", dir: "oauth_mode", want: []string{"auth"}},
 		{name: "request", dir: "req_map", want: []string{"request"}},
+		{name: "request pass header", dir: "pass_header", want: []string{"request"}},
+		{name: "request filter header values", dir: "filter_header_values", want: []string{"request"}},
 		{name: "multi blocks", dir: "set_header", want: []string{"request", "balance", "models"}},
 		{name: "response", dir: "resp_map", want: []string{"response"}},
 		{name: "error", dir: "error_map", want: []string{"error"}},

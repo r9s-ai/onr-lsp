@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 	"testing"
 )
 
@@ -75,6 +76,47 @@ func TestHandle_DidOpenPublishesDiagnostics(t *testing.T) {
 	}
 	if msgs[0]["method"] != "textDocument/publishDiagnostics" {
 		t.Fatalf("expected publishDiagnostics, got: %+v", msgs[0])
+	}
+}
+
+func TestHandle_DidOpenIncludeTopLevelHasNoUnknownDirectiveDiagnostic(t *testing.T) {
+	var out bytes.Buffer
+	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))
+
+	params, err := json.Marshal(didOpenParams{
+		TextDocument: textDocumentItem{
+			URI:  "file:///tmp/include.conf",
+			Text: "include \"common.conf\";\nprovider \"x\" {}\n",
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal didOpen params: %v", err)
+	}
+	if err := s.handle(inboundMessage{
+		JSONRPC: "2.0",
+		Method:  "textDocument/didOpen",
+		Params:  params,
+	}); err != nil {
+		t.Fatalf("handle didOpen: %v", err)
+	}
+
+	msgs := readAllLSPMessages(t, out.Bytes())
+	if len(msgs) == 0 {
+		t.Fatalf("expected diagnostics notification")
+	}
+	paramsOut, ok := msgs[0]["params"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected params object, got: %#v", msgs[0]["params"])
+	}
+	diags, ok := paramsOut["diagnostics"].([]any)
+	if !ok {
+		t.Fatalf("expected diagnostics array, got: %#v", paramsOut["diagnostics"])
+	}
+	for _, raw := range diags {
+		d, _ := raw.(map[string]any)
+		if msg, _ := d["message"].(string); strings.Contains(msg, "unknown top-level directive") {
+			t.Fatalf("unexpected unknown top-level directive diagnostic: %q", msg)
+		}
 	}
 }
 

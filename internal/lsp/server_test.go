@@ -208,6 +208,42 @@ func TestCompleteDirectiveInAuthBlock(t *testing.T) {
 	}
 }
 
+func TestCompleteDirectiveInRequestBlock(t *testing.T) {
+	text := "provider \"x\" {\n  defaults { request { p } }\n}\n"
+	items := complete(text, Position{Line: 1, Character: len("  defaults { request { p")})
+	if len(items) == 0 {
+		t.Fatalf("expected directive completion items, got none")
+	}
+	found := false
+	for _, it := range items {
+		if it.Label == "pass_header" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected pass_header in request block completion, got: %+v", items)
+	}
+}
+
+func TestCompleteFilterHeaderValuesInRequestBlock(t *testing.T) {
+	text := "provider \"x\" {\n  defaults { request { f } }\n}\n"
+	items := complete(text, Position{Line: 1, Character: len("  defaults { request { f")})
+	if len(items) == 0 {
+		t.Fatalf("expected directive completion items, got none")
+	}
+	found := false
+	for _, it := range items {
+		if it.Label == "filter_header_values" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected filter_header_values in request block completion, got: %+v", items)
+	}
+}
+
 func TestCompleteDirectiveTopLevel(t *testing.T) {
 	text := "s"
 	items := complete(text, Position{Line: 0, Character: 1})
@@ -223,6 +259,24 @@ func TestCompleteDirectiveTopLevel(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected syntax in top-level completion, got: %+v", items)
+	}
+}
+
+func TestCompleteDirectiveTopLevelInclude(t *testing.T) {
+	text := "i"
+	items := complete(text, Position{Line: 0, Character: 1})
+	if len(items) == 0 {
+		t.Fatalf("expected top-level completion items, got none")
+	}
+	found := false
+	for _, it := range items {
+		if it.Label == "include" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected include in top-level completion, got: %+v", items)
 	}
 }
 
