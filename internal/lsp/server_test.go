@@ -208,9 +208,27 @@ func TestCompleteDirectiveInAuthBlock(t *testing.T) {
 	}
 }
 
-func TestCompleteDirectiveInUpstreamBlock(t *testing.T) {
-	text := "provider \"x\" {\n  match api = \"chat.completions\" { upstream { f } }\n}\n"
-	items := complete(text, Position{Line: 1, Character: len("  match api = \"chat.completions\" { upstream { f")})
+func TestCompleteDirectiveInRequestBlock(t *testing.T) {
+	text := "provider \"x\" {\n  defaults { request { p } }\n}\n"
+	items := complete(text, Position{Line: 1, Character: len("  defaults { request { p")})
+	if len(items) == 0 {
+		t.Fatalf("expected directive completion items, got none")
+	}
+	found := false
+	for _, it := range items {
+		if it.Label == "pass_header" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected pass_header in request block completion, got: %+v", items)
+	}
+}
+
+func TestCompleteFilterHeaderValuesInRequestBlock(t *testing.T) {
+	text := "provider \"x\" {\n  defaults { request { f } }\n}\n"
+	items := complete(text, Position{Line: 1, Character: len("  defaults { request { f")})
 	if len(items) == 0 {
 		t.Fatalf("expected directive completion items, got none")
 	}
@@ -222,7 +240,7 @@ func TestCompleteDirectiveInUpstreamBlock(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatalf("expected filter_header_values in upstream block completion, got: %+v", items)
+		t.Fatalf("expected filter_header_values in request block completion, got: %+v", items)
 	}
 }
 
