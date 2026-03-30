@@ -17,6 +17,7 @@ func TestAllowedBlocksForDirective(t *testing.T) {
 		{name: "error", dir: "error_map", want: []string{"error"}},
 		{name: "metrics", dir: "usage_extract", want: []string{"metrics"}},
 		{name: "upstream block", dir: "set_path", want: []string{"upstream"}},
+		{name: "upstream filter header values", dir: "filter_header_values", want: []string{"upstream"}},
 		{name: "base url", dir: "base_url", want: []string{"upstream_config"}},
 		{name: "block keyword", dir: "provider", want: nil},
 		{name: "unknown", dir: "not_exists", want: nil},

@@ -208,6 +208,24 @@ func TestCompleteDirectiveInAuthBlock(t *testing.T) {
 	}
 }
 
+func TestCompleteDirectiveInUpstreamBlock(t *testing.T) {
+	text := "provider \"x\" {\n  match api = \"chat.completions\" { upstream { f } }\n}\n"
+	items := complete(text, Position{Line: 1, Character: len("  match api = \"chat.completions\" { upstream { f")})
+	if len(items) == 0 {
+		t.Fatalf("expected directive completion items, got none")
+	}
+	found := false
+	for _, it := range items {
+		if it.Label == "filter_header_values" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected filter_header_values in upstream block completion, got: %+v", items)
+	}
+}
+
 func TestCompleteDirectiveTopLevel(t *testing.T) {
 	text := "s"
 	items := complete(text, Position{Line: 0, Character: 1})
