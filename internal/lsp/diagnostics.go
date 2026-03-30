@@ -59,6 +59,18 @@ func (p *parser) parseFile() {
 			}
 			continue
 		}
+		if tok.text == "include" {
+			p.next() // include
+			v := p.next()
+			if v.kind != tokString {
+				p.add(v, "expected include path string literal")
+			}
+			semi := p.next()
+			if semi.kind != tokSemicolon {
+				p.add(semi, "expected ';' after include directive")
+			}
+			continue
+		}
 		if tok.text != "provider" {
 			p.add(tok, "unknown top-level directive: "+tok.text)
 			p.skipStmtOrBlock()

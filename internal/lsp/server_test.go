@@ -244,6 +244,24 @@ func TestCompleteDirectiveTopLevel(t *testing.T) {
 	}
 }
 
+func TestCompleteDirectiveTopLevelInclude(t *testing.T) {
+	text := "i"
+	items := complete(text, Position{Line: 0, Character: 1})
+	if len(items) == 0 {
+		t.Fatalf("expected top-level completion items, got none")
+	}
+	found := false
+	for _, it := range items {
+		if it.Label == "include" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected include in top-level completion, got: %+v", items)
+	}
+}
+
 func TestHoverDocs(t *testing.T) {
 	text := "provider \"x\" { response { sse_parse anthropic_to_openai_chunks; } }"
 	word, _ := wordAt(text, Position{Line: 0, Character: 28})
