@@ -51,6 +51,20 @@ func TestLexSemantic_CommentsAndNumbers(t *testing.T) {
 	}
 }
 
+func TestLexSemantic_SingleQuotedStrings(t *testing.T) {
+	toks := lexSemantic("provider 'gemini' {\n  metrics { usage_fact audio.input token path='$.usageMetadata.promptTokensDetails[?(@.modality==\"AUDIO\")].tokenCount'; }\n}\n")
+	foundString := false
+	for _, tok := range toks {
+		if tok.kind == semanticLexString && tok.text == "'gemini'" {
+			foundString = true
+			break
+		}
+	}
+	if !foundString {
+		t.Fatalf("expected single-quoted string token, got: %+v", toks)
+	}
+}
+
 func TestEncodeSemanticSpans_Delta(t *testing.T) {
 	spans := []semanticSpan{
 		{line: 1, start: 2, length: 3, typ: semanticTypeKeyword},

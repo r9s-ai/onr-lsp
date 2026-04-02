@@ -50,6 +50,14 @@ func TestDiagnostics_SkipBalancedBlockMissingRBrace(t *testing.T) {
 	}
 }
 
+func TestDiagnostics_AcceptsSingleQuotedStrings(t *testing.T) {
+	text := "syntax 'next-router/0.1';\nprovider 'gemini' {\n  defaults {\n    metrics {\n      usage_fact audio.input token path='$.usageMetadata.promptTokensDetails[?(@.modality==\"AUDIO\")].tokenCount';\n    }\n  }\n}\n"
+	diags := analyze(text)
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for single-quoted strings, got: %+v", diags)
+	}
+}
+
 func TestSemanticModeHelpers(t *testing.T) {
 	toks := []token{
 		{kind: tokIdent, text: "req_map", line: 0, col: 0},
@@ -70,6 +78,9 @@ func TestSemanticModeHelpers(t *testing.T) {
 	}
 	if got := normalizeModeToken(token{kind: tokIdent, text: "  anthropic  "}); got != "anthropic" {
 		t.Fatalf("expected trimmed ident mode, got %q", got)
+	}
+	if got := normalizeModeToken(token{kind: tokString, text: "'gemini'"}); got != "gemini" {
+		t.Fatalf("expected trimmed single-quoted mode, got %q", got)
 	}
 }
 

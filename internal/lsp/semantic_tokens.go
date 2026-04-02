@@ -333,7 +333,8 @@ func (s *semanticLexState) scanSingleChar() bool {
 }
 
 func (s *semanticLexState) scanString() bool {
-	if s.input[s.i] != '"' {
+	quote := s.input[s.i]
+	if quote != '"' && quote != '\'' {
 		return false
 	}
 	startLine, startCol := s.line, s.col
@@ -343,7 +344,7 @@ func (s *semanticLexState) scanString() bool {
 			j += 2
 			continue
 		}
-		if s.input[j] == '"' {
+		if s.input[j] == quote {
 			j++
 			break
 		}

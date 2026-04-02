@@ -66,6 +66,10 @@
         {
           "name": "constant.other.mode.onr-dsl",
           "match": "(?<=\\b(?:balance_mode|error_map|finish_reason_extract|models_mode|oauth_mode|req_map|resp_map|sse_parse|usage_extract)\\s+)\"[^\"\\n]*\""
+        },
+        {
+          "name": "constant.other.mode.onr-dsl",
+          "match": "(?<=\\b(?:balance_mode|error_map|finish_reason_extract|models_mode|oauth_mode|req_map|resp_map|sse_parse|usage_extract)\\s+)'[^'\\n]*'"
         }
       ]
     },
@@ -90,6 +94,10 @@
         {
           "name": "entity.name.namespace.onr-dsl",
           "match": "(?<=\\bprovider\\s+)\"[^\"\\n]*\""
+        },
+        {
+          "name": "entity.name.namespace.onr-dsl",
+          "match": "(?<=\\bprovider\\s+)'[^'\\n]*'"
         }
       ]
     },
@@ -99,6 +107,17 @@
           "name": "string.quoted.double.onr-dsl",
           "begin": "\"",
           "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.onr-dsl",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.onr-dsl",
+          "begin": "'",
+          "end": "'",
           "patterns": [
             {
               "name": "constant.character.escape.onr-dsl",

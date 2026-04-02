@@ -93,10 +93,12 @@ func main() {
 			}},
 			"provider-name": tmRepositoryEntry{Patterns: []tmPattern{
 				{Name: "entity.name.namespace.onr-dsl", Match: `(?<=\bprovider\s+)"[^"\n]*"`},
+				{Name: "entity.name.namespace.onr-dsl", Match: `(?<=\bprovider\s+)'[^'\n]*'`},
 			}},
 			"mode-value": tmRepositoryEntry{Patterns: []tmPattern{
-				{Name: "constant.other.mode.onr-dsl", Match: modeValueMatch(modeDirectives, false)},
-				{Name: "constant.other.mode.onr-dsl", Match: modeValueMatch(modeDirectives, true)},
+				{Name: "constant.other.mode.onr-dsl", Match: modeValueMatch(modeDirectives)},
+				{Name: "constant.other.mode.onr-dsl", Match: modeValueQuotedMatch(modeDirectives, '"')},
+				{Name: "constant.other.mode.onr-dsl", Match: modeValueQuotedMatch(modeDirectives, '\'')},
 			}},
 			"keywords": tmRepositoryEntry{Patterns: []tmPattern{
 				{Name: "keyword.control.onr-dsl", Match: wordRegex(keywords)},
@@ -112,6 +114,14 @@ func main() {
 					Name:  "string.quoted.double.onr-dsl",
 					Begin: `"`,
 					End:   `"`,
+					Patterns: []tmPattern{
+						{Name: "constant.character.escape.onr-dsl", Match: `\\.`},
+					},
+				},
+				{
+					Name:  "string.quoted.single.onr-dsl",
+					Begin: `'`,
+					End:   `'`,
 					Patterns: []tmPattern{
 						{Name: "constant.character.escape.onr-dsl", Match: `\\.`},
 					},
@@ -148,12 +158,17 @@ func main() {
 	}
 }
 
-func modeValueMatch(modeDirectives []string, quoted bool) string {
+func modeValueMatch(modeDirectives []string) string {
 	base := `(?<=\b(?:` + joinRegexAlternation(modeDirectives) + `)\s+)`
-	if quoted {
-		return base + `"[^"\n]*"`
-	}
 	return base + `[A-Za-z_][A-Za-z0-9_\.-]*`
+}
+
+func modeValueQuotedMatch(modeDirectives []string, quote byte) string {
+	base := `(?<=\b(?:` + joinRegexAlternation(modeDirectives) + `)\s+)`
+	if quote == '\'' {
+		return base + `'[^'\n]*'`
+	}
+	return base + `"[^"\n]*"`
 }
 
 func wordRegex(words []string) string {

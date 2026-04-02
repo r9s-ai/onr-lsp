@@ -126,7 +126,7 @@ func nextModeToken(toks []token, idx int) (token, bool) {
 
 func normalizeModeToken(tok token) string {
 	if tok.kind == tokString {
-		return strings.Trim(strings.TrimSpace(tok.text), "\"")
+		return strings.Trim(strings.TrimSpace(tok.text), "\"'")
 	}
 	return strings.TrimSpace(tok.text)
 }

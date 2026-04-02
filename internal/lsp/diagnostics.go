@@ -407,7 +407,8 @@ func lex(input string) []token {
 			i++
 			col++
 			continue
-		case '"':
+		case '"', '\'':
+			quote := ch
 			j := i + 1
 			c2 := col + 1
 			for j < len(input) {
@@ -416,7 +417,7 @@ func lex(input string) []token {
 					c2 += 2
 					continue
 				}
-				if input[j] == '"' {
+				if input[j] == quote {
 					j++
 					c2++
 					break
