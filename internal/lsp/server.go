@@ -440,7 +440,7 @@ func complete(text string, pos Position) []CompletionItem {
 
 	dir, dirPrefix, ok := modeCompletionPrefix(prefix)
 	if ok && directiveAllowedInPhase(dir, block) {
-		return completionItemsFromValues(modeListByDirective(dir), dirPrefix, dir+" mode", "Built-in ONR mapping mode.", 3)
+		return completionItemsFromValues(modeListByDirective(text, block, dir), dirPrefix, dir+" mode", "Built-in or user-defined ONR mapping mode.", 3)
 	}
 
 	wordPrefix := currentWordPrefix(prefix)
@@ -475,8 +475,14 @@ func directiveCompletionPrefix(linePrefix, directive string) (string, bool) {
 	return strings.TrimSpace(after), true
 }
 
-func modeListByDirective(directive string) []string {
-	return dslspec.ModesByDirective(directive)
+func modeListByDirective(text, block, directive string) []string {
+	values := append([]string(nil), dslspec.ModesByDirective(directive)...)
+	modeBlock := modeRegistryBlockForDirective(block, directive)
+	if modeBlock == "" {
+		return values
+	}
+	values = append(values, collectNamedModeBlocks(text, modeBlock)...)
+	return dedupeSortedStrings(values)
 }
 
 func enumValuesByDirectiveInBlock(directive, block string) []string {
@@ -511,7 +517,7 @@ func enumArgCompletionPrefix(linePrefix, block string) (directive string, prefix
 func currentCompletionBlock(text string, pos Position) string {
 	stack := currentBlockStack(text, pos)
 	if len(stack) == 0 {
-		return "_top"
+		return "top"
 	}
 	return stack[len(stack)-1]
 }
@@ -527,17 +533,15 @@ func currentBlockStack(text string, pos Position) []string {
 		if tokenAfterPosition(tok, pos) {
 			break
 		}
+		block := "top"
+		if len(stack) > 0 {
+			block = stack[len(stack)-1]
+		}
 		switch tok.kind {
 		case tokIdent:
-			if isBlockKeyword(tok.text) {
-				if tok.text == "match" {
-					pending = tok.text
-					lockedPending = true
-					continue
-				}
-				if !lockedPending {
-					pending = tok.text
-				}
+			if isStatementStart(toks, i) && blockAllowsChildBlock(block, tok.text) {
+				pending = tok.text
+				lockedPending = blockDirectiveNeedsHeader(tok.text)
 			}
 		case tokLBrace:
 			name := pending
@@ -564,6 +568,104 @@ func currentBlockStack(text string, pos Position) []string {
 
 func isBlockKeyword(s string) bool {
 	return dslspec.IsBlockDirective(s)
+}
+
+func modeRegistryBlockForDirective(block, directive string) string {
+	switch strings.TrimSpace(directive) {
+	case "usage_extract":
+		if block == "metrics" || block == "usage_mode" {
+			return "usage_mode"
+		}
+	case "finish_reason_extract":
+		if block == "metrics" || block == "finish_reason_mode" {
+			return "finish_reason_mode"
+		}
+	case "models_mode":
+		if block == "models" || block == "models_mode" {
+			return "models_mode"
+		}
+	case "balance_mode":
+		if block == "balance" || block == "balance_mode" {
+			return "balance_mode"
+		}
+	}
+	return ""
+}
+
+func collectNamedModeBlocks(text, blockName string) []string {
+	toks := lex(text)
+	stack := make([]string, 0, 8)
+	pending := ""
+	lockedPending := false
+	seen := map[string]struct{}{}
+	out := make([]string, 0, 8)
+
+	for i := 0; i < len(toks); i++ {
+		tok := toks[i]
+		block := "top"
+		if len(stack) > 0 {
+			block = stack[len(stack)-1]
+		}
+		switch tok.kind {
+		case tokIdent:
+			if isStatementStart(toks, i) && block == "top" && tok.text == blockName {
+				if name, ok := nextModeToken(toks, i+1); ok {
+					v := normalizeModeToken(name)
+					if v != "" {
+						if _, exists := seen[v]; !exists {
+							seen[v] = struct{}{}
+							out = append(out, v)
+						}
+					}
+				}
+			}
+			if isStatementStart(toks, i) && blockAllowsChildBlock(block, tok.text) {
+				pending = tok.text
+				lockedPending = blockDirectiveNeedsHeader(tok.text)
+			}
+		case tokLBrace:
+			name := pending
+			if name == "" {
+				name = "unknown"
+			}
+			stack = append(stack, name)
+			pending = ""
+			lockedPending = false
+		case tokRBrace:
+			if len(stack) > 0 {
+				stack = stack[:len(stack)-1]
+			}
+			pending = ""
+			lockedPending = false
+		case tokSemicolon:
+			if !lockedPending {
+				pending = ""
+			}
+		}
+	}
+
+	return out
+}
+
+func dedupeSortedStrings(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		v := strings.TrimSpace(value)
+		if v == "" {
+			continue
+		}
+		if _, ok := seen[v]; ok {
+			continue
+		}
+		seen[v] = struct{}{}
+		out = append(out, v)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func tokenAfterPosition(tok token, pos Position) bool {

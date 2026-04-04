@@ -1,6 +1,6 @@
 # ONR DSL for VS Code
 
-VS Code extension for editing Open Next Router (ONR) provider DSL (`*.conf`).
+VS Code extension for editing Open Next Router (ONR) DSL config files (`*.conf`), including provider files, reusable mode preset files, and merged/root config entrypoints.
 
 <p align="center">
   <a href="https://github.com/r9s-ai/onr-lsp/actions/workflows/publish-vscode.yml"><img src="https://github.com/r9s-ai/onr-lsp/actions/workflows/publish-vscode.yml/badge.svg" alt="CI" /></a>
@@ -27,13 +27,14 @@ VS Code extension for editing Open Next Router (ONR) provider DSL (`*.conf`).
   - Semantic tokens from `onr-lsp` for context-aware token coloring
 - Completion
   - Directive completion by current DSL block
-  - Mapper mode completion for directives like `req_map`, `resp_map`, `sse_parse`
+  - Built-in mode completion for directives like `req_map`, `resp_map`, `sse_parse`
+  - User-defined preset completion for `usage_extract`, `finish_reason_extract`, `models_mode`, `balance_mode`
   - Enum value completion for selected directives (for example `balance_unit`, `method`, `oauth_content_type`)
 - Hover
   - Short directive documentation from ONR DSL metadata
 - Diagnostics
   - Basic syntax diagnostics (missing braces, unknown directives)
-  - Semantic diagnostics for invalid mapper modes
+  - Semantic diagnostics for invalid mode values and block usage
 - Formatting
   - Document formatting via `textDocument/formatting` from `onr-lsp`
 
@@ -42,6 +43,9 @@ VS Code extension for editing Open Next Router (ONR) provider DSL (`*.conf`).
 The extension client is activated for:
 
 - `**/providers/*.conf`
+- `**/modes/*.conf`
+- `**/onr.conf`
+- `**/providers.conf`
 
 ## Server Resolution
 

@@ -14,16 +14,22 @@ func TestSemanticTokensFull_EncodesData(t *testing.T) {
 }
 
 func TestClassifyIdentifierType(t *testing.T) {
-	if got := classifyIdentifierType("provider", "top", false); got != semanticTypeKeyword {
+	if got := classifyIdentifierType("provider", "top", true, false); got != semanticTypeKeyword {
 		t.Fatalf("provider should be keyword, got %d", got)
 	}
-	if got := classifyIdentifierType("req_map", "request", false); got != semanticTypeProperty {
+	if got := classifyIdentifierType("req_map", "request", true, false); got != semanticTypeProperty {
 		t.Fatalf("req_map in request should be property, got %d", got)
 	}
-	if got := classifyIdentifierType("openai", "request", true); got != semanticTypeEnumMember {
+	if got := classifyIdentifierType("openai", "request", false, true); got != semanticTypeEnumMember {
 		t.Fatalf("mode token should be enumMember, got %d", got)
 	}
-	if got := classifyIdentifierType("unknown_token", "request", false); got != -1 {
+	if got := classifyIdentifierType("models_mode", "models", true, false); got != semanticTypeProperty {
+		t.Fatalf("models_mode in models block should be property, got %d", got)
+	}
+	if got := classifyIdentifierType("models_mode", "top", true, false); got != semanticTypeKeyword {
+		t.Fatalf("top-level models_mode should be keyword, got %d", got)
+	}
+	if got := classifyIdentifierType("unknown_token", "request", true, false); got != -1 {
 		t.Fatalf("unknown token should be untyped, got %d", got)
 	}
 }

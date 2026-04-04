@@ -280,6 +280,42 @@ func TestCompleteDirectiveTopLevelInclude(t *testing.T) {
 	}
 }
 
+func TestCompleteDirectiveTopLevelUsageMode(t *testing.T) {
+	text := "u"
+	items := complete(text, Position{Line: 0, Character: 1})
+	if len(items) == 0 {
+		t.Fatalf("expected top-level completion items, got none")
+	}
+	found := false
+	for _, it := range items {
+		if it.Label == "usage_mode" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected usage_mode in top-level completion, got: %+v", items)
+	}
+}
+
+func TestCompleteUsageExtractWithLocalUsageMode(t *testing.T) {
+	text := "usage_mode \"shared_usage\" {\n  usage_extract custom;\n  usage_fact input token path=\"$.usage.prompt_tokens\";\n}\nprovider \"x\" {\n  defaults {\n    metrics {\n      usage_extract sha\n    }\n  }\n}\n"
+	items := complete(text, Position{Line: 7, Character: len("      usage_extract sha")})
+	if len(items) == 0 {
+		t.Fatalf("expected usage_extract completion items, got none")
+	}
+	found := false
+	for _, it := range items {
+		if it.Label == "shared_usage" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected shared_usage in usage_extract completion, got: %+v", items)
+	}
+}
+
 func TestHoverDocs(t *testing.T) {
 	text := "provider \"x\" { response { sse_parse anthropic_to_openai_chunks; } }"
 	word, _ := wordAt(text, Position{Line: 0, Character: 28})
@@ -292,7 +328,7 @@ func TestHoverDocs(t *testing.T) {
 }
 
 func TestHoverDocsForUsageExtract(t *testing.T) {
-	text := "provider \"x\" { metrics { usage_extract openai; } }"
+	text := "provider \"x\" { metrics { usage_extract custom; } }"
 	word, _ := wordAt(text, Position{Line: 0, Character: 31})
 	if word != "usage_extract" {
 		t.Fatalf("expected word usage_extract, got %q", word)

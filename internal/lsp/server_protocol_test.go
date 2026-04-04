@@ -86,7 +86,7 @@ func TestHandle_DidOpenIncludeTopLevelHasNoUnknownDirectiveDiagnostic(t *testing
 	params, err := json.Marshal(didOpenParams{
 		TextDocument: textDocumentItem{
 			URI:  "file:///tmp/include.conf",
-			Text: "include \"common.conf\";\nprovider \"x\" {}\n",
+			Text: "include providers;\nprovider \"x\" {}\n",
 		},
 	})
 	if err != nil {

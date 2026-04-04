@@ -168,20 +168,16 @@ func classifySemanticSpans(text string) []semanticSpan {
 			spans = append(spans, semanticSpan{line: tok.line, start: tok.col, length: tok.length, typ: semanticTypeNumber})
 			prevSig = prevSigOther
 		case semanticLexIdent:
-			tokenType := classifyIdentifierType(tok.text, block, modePending)
+			tokenType := classifyIdentifierType(tok.text, block, statementStart, modePending)
 			if tokenType >= 0 {
 				spans = append(spans, semanticSpan{line: tok.line, start: tok.col, length: tok.length, typ: tokenType})
 			}
 			if modePending {
 				modePending = false
 			}
-			if isBlockKeyword(tok.text) {
-				if tok.text == "match" {
-					pending = tok.text
-					lockedPending = true
-				} else if !lockedPending {
-					pending = tok.text
-				}
+			if statementStart && blockAllowsChildBlock(block, tok.text) {
+				pending = tok.text
+				lockedPending = blockDirectiveNeedsHeader(tok.text)
 			}
 			if statementStart {
 				currentDirective = tok.text
@@ -196,7 +192,7 @@ func classifySemanticSpans(text string) []semanticSpan {
 	return spans
 }
 
-func classifyIdentifierType(word, block string, modePending bool) int {
+func classifyIdentifierType(word, block string, statementStart, modePending bool) int {
 	w := strings.TrimSpace(word)
 	if w == "" {
 		return -1
@@ -207,7 +203,7 @@ func classifyIdentifierType(word, block string, modePending bool) int {
 	if w == "true" || w == "false" || w == "syntax" {
 		return semanticTypeKeyword
 	}
-	if isBlockKeyword(w) {
+	if statementStart && blockAllowsChildBlock(block, w) {
 		return semanticTypeKeyword
 	}
 	if directiveInBlock(w, block) {

@@ -1,6 +1,7 @@
 package lsp
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/r9s-ai/open-next-router/onr-core/pkg/dslspec"
@@ -61,32 +62,65 @@ func (p *parser) parseFile() {
 		}
 		if tok.text == "include" {
 			p.next() // include
-			v := p.next()
-			if v.kind != tokString {
-				p.add(v, "expected include path string literal")
-			}
-			semi := p.next()
-			if semi.kind != tokSemicolon {
-				p.add(semi, "expected ';' after include directive")
-			}
+			p.parseIncludeDirective()
 			continue
 		}
-		if tok.text != "provider" {
+		spec, ok := topLevelDirectives[tok.text]
+		if !ok {
 			p.add(tok, "unknown top-level directive: "+tok.text)
 			p.skipStmtOrBlock()
 			continue
 		}
-		p.next() // provider
-		name := p.next()
-		if name.kind != tokString {
-			p.add(name, "expected provider name string literal")
-		}
-		lb := p.next()
-		if lb.kind != tokLBrace {
-			p.add(lb, "expected '{' after provider name")
+		p.next()
+		if spec.block {
+			if spec.parseHeaderUntilBrace {
+				if !p.skipUntilLBrace(spec.name) {
+					return
+				}
+			} else {
+				lb := p.next()
+				if lb.kind != tokLBrace {
+					p.add(lb, "expected '{' after "+spec.name)
+					continue
+				}
+			}
+			if spec.sub != nil {
+				p.parseBlock(spec.name, spec.sub)
+			} else {
+				p.skipBalancedBlock(spec.name)
+			}
 			continue
 		}
-		p.parseBlock("provider", providerDirectives)
+		p.skipStatement(spec.name)
+	}
+}
+
+func (p *parser) parseIncludeDirective() {
+	seenArg := false
+	for {
+		tok := p.next()
+		switch tok.kind {
+		case tokSemicolon:
+			if !seenArg {
+				p.add(tok, "include expects a path")
+			}
+			return
+		case tokEOF:
+			p.add(tok, "expected ';' after include directive")
+			return
+		case tokRBrace:
+			p.add(tok, "expected ';' after include directive")
+			if p.i > 0 {
+				p.i--
+			}
+			return
+		case tokLBrace:
+			p.add(tok, "include does not use '{ ... }'; expected ';'")
+			p.skipBalancedBlock("include")
+			return
+		default:
+			seenArg = true
+		}
 	}
 }
 
@@ -253,10 +287,42 @@ type directiveSpec struct {
 }
 
 var (
-	providerDirectives    map[string]directiveSpec
+	topLevelDirectives    map[string]directiveSpec
 	directiveAllowedInMap map[string][]string
 	blockKeywordSet       map[string]struct{}
 )
+
+var blockChildren = map[string]map[string]struct{}{
+	"top": {
+		"provider":           {},
+		"usage_mode":         {},
+		"finish_reason_mode": {},
+		"models_mode":        {},
+		"balance_mode":       {},
+	},
+	"provider": {
+		"defaults": {},
+		"match":    {},
+	},
+	"defaults": {
+		"upstream_config": {},
+		"auth":            {},
+		"request":         {},
+		"response":        {},
+		"error":           {},
+		"metrics":         {},
+		"balance":         {},
+		"models":          {},
+	},
+	"match": {
+		"upstream": {},
+		"auth":     {},
+		"request":  {},
+		"response": {},
+		"error":    {},
+		"metrics":  {},
+	},
+}
 
 func init() {
 	initDirectiveSpecsFromMetadata()
@@ -264,7 +330,6 @@ func init() {
 
 func initDirectiveSpecsFromMetadata() {
 	meta := dslspec.DirectiveMetadataList()
-	knownBlocks := map[string]struct{}{}
 	directiveAllowedInMap = map[string][]string{}
 	seenDirectiveBlocks := map[string]map[string]struct{}{}
 
@@ -274,7 +339,6 @@ func initDirectiveSpecsFromMetadata() {
 		if block == "" || name == "" {
 			continue
 		}
-		knownBlocks[block] = struct{}{}
 		if _, ok := seenDirectiveBlocks[name]; !ok {
 			seenDirectiveBlocks[name] = map[string]struct{}{}
 		}
@@ -288,7 +352,7 @@ func initDirectiveSpecsFromMetadata() {
 	blockKeywordSet = map[string]struct{}{
 		"provider": {},
 	}
-	for block := range knownBlocks {
+	for block := range blockChildren {
 		if block == "top" {
 			continue
 		}
@@ -310,9 +374,9 @@ func initDirectiveSpecsFromMetadata() {
 		specs := make(map[string]directiveSpec, len(names))
 		for _, name := range names {
 			spec := directiveSpec{name: name}
-			if _, isBlock := blockKeywordSet[name]; isBlock && name != block {
+			if blockAllowsChildBlock(block, name) {
 				spec.block = true
-				spec.parseHeaderUntilBrace = name == "match"
+				spec.parseHeaderUntilBrace = blockDirectiveNeedsHeader(name)
 				spec.sub = buildBlockSpecs(name, visiting)
 			}
 			specs[name] = spec
@@ -321,7 +385,7 @@ func initDirectiveSpecsFromMetadata() {
 		return specs
 	}
 
-	providerDirectives = buildBlockSpecs("provider", map[string]bool{})
+	topLevelDirectives = buildBlockSpecs("top", map[string]bool{})
 }
 
 func normalizeMetaBlock(block string) string {
@@ -351,7 +415,28 @@ func allowedBlocksForDirective(d string) []string {
 	if len(out) == 0 {
 		return nil
 	}
+	sort.Strings(out)
 	return out
+}
+
+func blockAllowsChildBlock(parent, child string) bool {
+	p := normalizeMetaBlock(parent)
+	c := strings.TrimSpace(child)
+	children := blockChildren[p]
+	if len(children) == 0 {
+		return false
+	}
+	_, ok := children[c]
+	return ok
+}
+
+func blockDirectiveNeedsHeader(name string) bool {
+	switch strings.TrimSpace(name) {
+	case "provider", "match", "usage_mode", "finish_reason_mode", "models_mode", "balance_mode":
+		return true
+	default:
+		return false
+	}
 }
 
 func lex(input string) []token {

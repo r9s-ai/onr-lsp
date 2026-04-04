@@ -22,6 +22,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const clientOptions: LanguageClientOptions = {
     documentSelector: [
       { scheme: "file", language: "onr-dsl", pattern: "**/providers/*.conf" },
+      { scheme: "file", language: "onr-dsl", pattern: "**/modes/*.conf" },
+      { scheme: "file", language: "onr-dsl", pattern: "**/onr.conf" },
+      { scheme: "file", language: "onr-dsl", pattern: "**/providers.conf" },
     ],
     synchronize: {
       configurationSection: "onrLsp",

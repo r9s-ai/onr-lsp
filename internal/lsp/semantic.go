@@ -34,13 +34,13 @@ func analyzeSemantic(uri, text string) []Diagnostic {
 		return nil
 	}
 
-	p, err := writeTempProviderFile(uri, text)
+	p, cleanup, validate, err := writeTempValidationFile(uri, text)
 	if err != nil {
 		return []Diagnostic{newDiagnostic(0, 0, "semantic validation setup failed: "+err.Error())}
 	}
-	defer func() { _ = os.Remove(p) }()
+	defer cleanup()
 
-	_, err = dslconfig.ValidateProviderFile(p)
+	err = validate(p)
 	if err == nil {
 		return nil
 	}
@@ -81,6 +81,9 @@ func analyzeSemanticModes(text string) []Diagnostic {
 		}
 		allowed := allowedModesForDirective(tok.text)
 		if len(allowed) == 0 {
+			continue
+		}
+		if directiveAllowsDynamicModes(tok.text) {
 			continue
 		}
 		modeTok, ok := nextModeToken(toks, i+1)
@@ -143,7 +146,43 @@ func setFromSlice(v []string) map[string]struct{} {
 	return out
 }
 
-func writeTempProviderFile(uri, content string) (string, error) {
+func directiveAllowsDynamicModes(d string) bool {
+	switch strings.TrimSpace(d) {
+	case "usage_extract", "finish_reason_extract", "models_mode", "balance_mode":
+		return true
+	default:
+		return false
+	}
+}
+
+func writeTempValidationFile(uri, content string) (string, func(), func(string) error, error) {
+	validate := func(path string) error {
+		_, err := dslconfig.ValidateProvidersFile(path)
+		return err
+	}
+	filename := validationFilename(uri, content)
+	if hasProvider, err := documentHasProvider(uri, content); err == nil && hasProvider {
+		validate = func(path string) error {
+			_, err := dslconfig.ValidateProviderFile(path)
+			return err
+		}
+	}
+	dir, err := os.MkdirTemp("", "onr-lsp-*")
+	if err != nil {
+		return "", nil, nil, fmt.Errorf("create temp dir: %w", err)
+	}
+	cleanup := func() {
+		_ = os.RemoveAll(dir)
+	}
+	p := filepath.Join(dir, filename)
+	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+		cleanup()
+		return "", nil, nil, fmt.Errorf("write temp validation file: %w", err)
+	}
+	return p, cleanup, validate, nil
+}
+
+func validationFilename(uri, content string) string {
 	providerName := extractProviderName(content)
 	if providerName == "" {
 		providerName = providerNameFromURI(uri)
@@ -153,13 +192,18 @@ func writeTempProviderFile(uri, content string) (string, error) {
 	}
 	providerName = strings.ToLower(strings.TrimSpace(providerName))
 	providerName = strings.ReplaceAll(providerName, " ", "-")
-
-	filename := providerName + ".conf"
-	p := filepath.Join(os.TempDir(), filename)
-	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
-		return "", fmt.Errorf("write temp provider file: %w", err)
+	if filepath.Ext(providerName) == "" {
+		providerName += ".conf"
 	}
-	return p, nil
+	return providerName
+}
+
+func documentHasProvider(uri, content string) (bool, error) {
+	_, hasProvider, err := dslconfig.FindProviderNameOptional(providerNameFromURI(uri), content)
+	if err != nil {
+		return false, err
+	}
+	return hasProvider, nil
 }
 
 func extractProviderName(content string) string {
@@ -242,21 +286,17 @@ func semanticDirectivePositionWithScope(text, directive, scope string) (int, int
 	lockedPending := false
 	for i := 0; i < len(toks); i++ {
 		tok := toks[i]
+		block := "top"
+		if len(stack) > 0 {
+			block = stack[len(stack)-1]
+		}
 		switch tok.kind {
 		case tokIdent:
-			if isBlockKeyword(tok.text) {
-				if tok.text == "match" {
-					pending = tok.text
-					lockedPending = true
-				} else if !lockedPending {
-					pending = tok.text
-				}
+			if isStatementStart(toks, i) && blockAllowsChildBlock(block, tok.text) {
+				pending = tok.text
+				lockedPending = blockDirectiveNeedsHeader(tok.text)
 			}
 			if tok.text == directive && isStatementStart(toks, i) {
-				block := "_top"
-				if len(stack) > 0 {
-					block = stack[len(stack)-1]
-				}
 				if blockHint == "" || block == blockHint {
 					return tok.line, tok.col, true
 				}

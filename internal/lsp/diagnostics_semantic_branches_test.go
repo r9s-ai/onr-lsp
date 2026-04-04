@@ -58,6 +58,22 @@ func TestDiagnostics_AcceptsSingleQuotedStrings(t *testing.T) {
 	}
 }
 
+func TestDiagnostics_AcceptsUnquotedInclude(t *testing.T) {
+	text := "syntax \"next-router/0.1\";\ninclude providers;\ninclude modes/*.conf;\n"
+	diags := analyze(text)
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for unquoted include, got: %+v", diags)
+	}
+}
+
+func TestAnalyzeSemantic_AcceptsModeOnlyFile(t *testing.T) {
+	text := "syntax \"next-router/0.1\";\nusage_mode \"shared_usage\" {\n  usage_extract custom;\n  usage_fact input token path=\"$.usage.prompt_tokens\";\n}\n"
+	diags := analyzeSemantic("file:///tmp/usage_modes.conf", text)
+	if len(diags) != 0 {
+		t.Fatalf("expected no semantic diagnostics for mode-only file, got: %+v", diags)
+	}
+}
+
 func TestSemanticModeHelpers(t *testing.T) {
 	toks := []token{
 		{kind: tokIdent, text: "req_map", line: 0, col: 0},
