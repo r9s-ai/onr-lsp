@@ -3,6 +3,7 @@ package lsp
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/url"
 	"os"
 	"path"
@@ -156,6 +157,20 @@ func directiveAllowsDynamicModes(d string) bool {
 }
 
 func writeTempValidationFile(uri, content string) (string, func(), func(string) error, error) {
+	dir, err := os.MkdirTemp("", "onr-lsp-*")
+	if err != nil {
+		return "", nil, nil, fmt.Errorf("create temp dir: %w", err)
+	}
+	cleanup := func() {
+		_ = os.RemoveAll(dir)
+	}
+	if p, validate, ok, err := writeContextualValidationFile(dir, uri, content); err != nil {
+		cleanup()
+		return "", nil, nil, err
+	} else if ok {
+		return p, cleanup, validate, nil
+	}
+
 	validate := func(path string) error {
 		_, err := dslconfig.ValidateProvidersFile(path)
 		return err
@@ -167,19 +182,187 @@ func writeTempValidationFile(uri, content string) (string, func(), func(string) 
 			return err
 		}
 	}
-	dir, err := os.MkdirTemp("", "onr-lsp-*")
-	if err != nil {
-		return "", nil, nil, fmt.Errorf("create temp dir: %w", err)
-	}
-	cleanup := func() {
-		_ = os.RemoveAll(dir)
-	}
 	p := filepath.Join(dir, filename)
 	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
 		cleanup()
 		return "", nil, nil, fmt.Errorf("write temp validation file: %w", err)
 	}
 	return p, cleanup, validate, nil
+}
+
+func writeContextualValidationFile(tempRoot, uri, content string) (string, func(string) error, bool, error) {
+	actualPath, ok := filePathFromURI(uri)
+	if !ok {
+		return "", nil, false, nil
+	}
+	role, cfgRoot := detectValidationContext(actualPath)
+	if role == "" || cfgRoot == "" {
+		return "", nil, false, nil
+	}
+
+	switch role {
+	case "provider":
+		dst := filepath.Join(tempRoot, "providers", filepath.Base(actualPath))
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			return "", nil, false, fmt.Errorf("create temp providers dir: %w", err)
+		}
+		if err := os.WriteFile(dst, []byte(content), 0o644); err != nil {
+			return "", nil, false, fmt.Errorf("write temp provider file: %w", err)
+		}
+		if err := copyFileIfExists(filepath.Join(cfgRoot, "onr.conf"), filepath.Join(tempRoot, "onr.conf")); err != nil {
+			return "", nil, false, err
+		}
+		if err := copyDirIfExists(filepath.Join(cfgRoot, "modes"), filepath.Join(tempRoot, "modes")); err != nil {
+			return "", nil, false, err
+		}
+		return dst, func(path string) error {
+			_, err := dslconfig.ValidateProviderFile(path)
+			return err
+		}, true, nil
+	case "mode":
+		if err := copyDirIfExists(filepath.Join(cfgRoot, "providers"), filepath.Join(tempRoot, "providers")); err != nil {
+			return "", nil, false, err
+		}
+		if err := copyDirIfExists(filepath.Join(cfgRoot, "modes"), filepath.Join(tempRoot, "modes")); err != nil {
+			return "", nil, false, err
+		}
+		if err := copyFileIfExists(filepath.Join(cfgRoot, "onr.conf"), filepath.Join(tempRoot, "onr.conf")); err != nil {
+			return "", nil, false, err
+		}
+		dst := filepath.Join(tempRoot, "modes", filepath.Base(actualPath))
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			return "", nil, false, fmt.Errorf("create temp modes dir: %w", err)
+		}
+		if err := os.WriteFile(dst, []byte(content), 0o644); err != nil {
+			return "", nil, false, fmt.Errorf("write temp mode file: %w", err)
+		}
+		validatePath := filepath.Join(tempRoot, "onr.conf")
+		if _, err := os.Stat(validatePath); err != nil {
+			return "", nil, false, nil
+		}
+		return validatePath, func(path string) error {
+			_, err := dslconfig.ValidateProvidersFile(path)
+			return err
+		}, true, nil
+	case "onr.conf":
+		if err := copyDirIfExists(filepath.Join(cfgRoot, "providers"), filepath.Join(tempRoot, "providers")); err != nil {
+			return "", nil, false, err
+		}
+		if err := copyDirIfExists(filepath.Join(cfgRoot, "modes"), filepath.Join(tempRoot, "modes")); err != nil {
+			return "", nil, false, err
+		}
+		dst := filepath.Join(tempRoot, "onr.conf")
+		if err := os.WriteFile(dst, []byte(content), 0o644); err != nil {
+			return "", nil, false, fmt.Errorf("write temp onr.conf: %w", err)
+		}
+		return dst, func(path string) error {
+			_, err := dslconfig.ValidateProvidersFile(path)
+			return err
+		}, true, nil
+	case "providers.conf":
+		if err := copyDirIfExists(filepath.Join(cfgRoot, "modes"), filepath.Join(tempRoot, "modes")); err != nil {
+			return "", nil, false, err
+		}
+		dst := filepath.Join(tempRoot, "providers.conf")
+		if err := os.WriteFile(dst, []byte(content), 0o644); err != nil {
+			return "", nil, false, fmt.Errorf("write temp providers.conf: %w", err)
+		}
+		return dst, func(path string) error {
+			_, err := dslconfig.ValidateProvidersFile(path)
+			return err
+		}, true, nil
+	default:
+		return "", nil, false, nil
+	}
+}
+
+func detectValidationContext(actualPath string) (string, string) {
+	p := filepath.Clean(strings.TrimSpace(actualPath))
+	if p == "" {
+		return "", ""
+	}
+	base := filepath.Base(p)
+	parent := filepath.Base(filepath.Dir(p))
+	switch {
+	case base == "onr.conf":
+		return "onr.conf", filepath.Dir(p)
+	case base == "providers.conf":
+		return "providers.conf", filepath.Dir(p)
+	case parent == "providers":
+		return "provider", filepath.Dir(filepath.Dir(p))
+	case parent == "modes":
+		return "mode", filepath.Dir(filepath.Dir(p))
+	default:
+		return "", ""
+	}
+}
+
+func filePathFromURI(uri string) (string, bool) {
+	if strings.TrimSpace(uri) == "" {
+		return "", false
+	}
+	u, err := url.Parse(uri)
+	if err == nil && u.Scheme == "file" {
+		if u.Path == "" {
+			return "", false
+		}
+		return filepath.FromSlash(u.Path), true
+	}
+	if filepath.IsAbs(uri) {
+		return uri, true
+	}
+	return "", false
+}
+
+func copyFileIfExists(src, dst string) error {
+	b, err := os.ReadFile(src)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("read %q: %w", src, err)
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return fmt.Errorf("create dir for %q: %w", dst, err)
+	}
+	if err := os.WriteFile(dst, b, 0o644); err != nil {
+		return fmt.Errorf("write %q: %w", dst, err)
+	}
+	return nil
+}
+
+func copyDirIfExists(srcDir, dstDir string) error {
+	info, err := os.Stat(srcDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("stat %q: %w", srcDir, err)
+	}
+	if !info.IsDir() {
+		return nil
+	}
+	return filepath.WalkDir(srcDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(srcDir, path)
+		if err != nil {
+			return err
+		}
+		dstPath := filepath.Join(dstDir, rel)
+		if d.IsDir() {
+			return os.MkdirAll(dstPath, 0o755)
+		}
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if err := os.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(dstPath, b, 0o644)
+	})
 }
 
 func validationFilename(uri, content string) string {

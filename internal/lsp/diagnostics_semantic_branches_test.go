@@ -2,6 +2,9 @@ package lsp
 
 import (
 	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -71,6 +74,33 @@ func TestAnalyzeSemantic_AcceptsModeOnlyFile(t *testing.T) {
 	diags := analyzeSemantic("file:///tmp/usage_modes.conf", text)
 	if len(diags) != 0 {
 		t.Fatalf("expected no semantic diagnostics for mode-only file, got: %+v", diags)
+	}
+}
+
+func TestAnalyzeSemantic_UsesSiblingOnrConfigForProviderModes(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "providers"), 0o755); err != nil {
+		t.Fatalf("mkdir providers: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "modes"), 0o755); err != nil {
+		t.Fatalf("mkdir modes: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "onr.conf"), []byte("syntax \"next-router/0.1\";\ninclude modes/*.conf;\ninclude providers/*.conf;\n"), 0o644); err != nil {
+		t.Fatalf("write onr.conf: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "modes", "usage_modes.conf"), []byte("syntax \"next-router/0.1\";\nusage_mode \"openai_chat_completions\" {\n  usage_extract custom;\n  usage_fact input token path=\"$.usage.prompt_tokens\";\n}\n"), 0o644); err != nil {
+		t.Fatalf("write usage_modes.conf: %v", err)
+	}
+	providerPath := filepath.Join(root, "providers", "openai.conf")
+	if err := os.WriteFile(providerPath, []byte("syntax \"next-router/0.1\";\nprovider \"openai\" {}\n"), 0o644); err != nil {
+		t.Fatalf("write provider file: %v", err)
+	}
+
+	text := "syntax \"next-router/0.1\";\nprovider \"openai\" {\n  defaults {\n    upstream_config {\n      base_url = \"https://api.openai.com\";\n    }\n    metrics {\n      usage_extract openai_chat_completions;\n    }\n  }\n}\n"
+	uri := fmt.Sprintf("file://%s", filepath.ToSlash(providerPath))
+	diags := analyzeSemantic(uri, text)
+	if len(diags) != 0 {
+		t.Fatalf("expected no semantic diagnostics with sibling onr.conf context, got: %+v", diags)
 	}
 }
 
