@@ -84,7 +84,7 @@ func analyzeSemanticModes(text string) []Diagnostic {
 		if len(allowed) == 0 {
 			continue
 		}
-		if directiveAllowsDynamicModes(tok.text) {
+		if dslspec.DirectiveHasDynamicModeRegistry(tok.text) {
 			continue
 		}
 		modeTok, ok := nextModeToken(toks, i+1)
@@ -145,15 +145,6 @@ func setFromSlice(v []string) map[string]struct{} {
 		out[strings.ToLower(strings.TrimSpace(s))] = struct{}{}
 	}
 	return out
-}
-
-func directiveAllowsDynamicModes(d string) bool {
-	switch strings.TrimSpace(d) {
-	case "usage_extract", "finish_reason_extract", "models_mode", "balance_mode":
-		return true
-	default:
-		return false
-	}
 }
 
 func writeTempValidationFile(uri, content string) (string, func(), func(string) error, error) {

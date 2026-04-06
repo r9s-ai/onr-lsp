@@ -477,7 +477,7 @@ func directiveCompletionPrefix(linePrefix, directive string) (string, bool) {
 
 func modeListByDirective(text, block, directive string) []string {
 	values := append([]string(nil), dslspec.ModesByDirective(directive)...)
-	modeBlock := modeRegistryBlockForDirective(block, directive)
+	modeBlock := dslspec.DirectiveModeRegistryBlock(directive, block)
 	if modeBlock == "" {
 		return values
 	}
@@ -568,28 +568,6 @@ func currentBlockStack(text string, pos Position) []string {
 
 func isBlockKeyword(s string) bool {
 	return dslspec.IsBlockDirective(s)
-}
-
-func modeRegistryBlockForDirective(block, directive string) string {
-	switch strings.TrimSpace(directive) {
-	case "usage_extract":
-		if block == "metrics" || block == "usage_mode" {
-			return "usage_mode"
-		}
-	case "finish_reason_extract":
-		if block == "metrics" || block == "finish_reason_mode" {
-			return "finish_reason_mode"
-		}
-	case "models_mode":
-		if block == "models" || block == "models_mode" {
-			return "models_mode"
-		}
-	case "balance_mode":
-		if block == "balance" || block == "balance_mode" {
-			return "balance_mode"
-		}
-	}
-	return ""
 }
 
 func collectNamedModeBlocks(text, blockName string) []string {
