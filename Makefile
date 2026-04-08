@@ -1,9 +1,11 @@
-.PHONY: help build run test fmt tidy clean hooks \
+.PHONY: help build run test fmt tidy clean hooks sync-onr-core-version \
 	vscode-install vscode-version-patch vscode-compile vscode-watch vscode-package vscode-release-check vscode-bundle-bins vscode-generate-syntax vscode-install-vsix
 
 BIN_DIR := bin
 LSP_BIN := $(BIN_DIR)/onr-lsp
 GO := go
+ONR_REPO_DIR := ..
+ONR_CORE_MODULE := github.com/r9s-ai/open-next-router/onr-core
 VERSION ?= $(shell cd vscode >/dev/null 2>&1 && node -p "require('./package.json').version" 2>/dev/null || git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
@@ -34,6 +36,18 @@ fmt: ## Format Go code
 
 tidy: ## Tidy Go modules
 	$(GO) mod tidy
+
+sync-onr-core-version: ## Sync onr-core to the latest local onr-core/v* tag and run go mod tidy
+	@set -e; \
+	tag=$$(git -C $(ONR_REPO_DIR) tag -l 'onr-core/v*' | sort -V | tail -n 1); \
+	if [ -z "$$tag" ]; then \
+		echo "No local onr-core/v* tag found in $(ONR_REPO_DIR)"; \
+		exit 1; \
+	fi; \
+	version=$${tag#onr-core/}; \
+	echo "Syncing $(ONR_CORE_MODULE) to $$version"; \
+	GOWORK=off $(GO) get $(ONR_CORE_MODULE)@$$version; \
+	GOWORK=off $(GO) mod tidy
 
 hooks: ## Run prek hooks on all files
 	prek run --all-files
