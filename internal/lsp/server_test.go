@@ -420,6 +420,26 @@ func TestSemanticDiagnosticsUnsupportedReqMapMode(t *testing.T) {
 	}
 }
 
+func TestSemanticDiagnosticsIgnoreDynamicUsageExtractMode(t *testing.T) {
+	text := "provider \"x\" {\n  defaults {\n    upstream_config {\n      base_url = \"https://example.com\";\n    }\n    metrics {\n      usage_extract local_usage_mode;\n    }\n  }\n}\n"
+	diags := collectDiagnostics("file:///tmp/x.conf", text)
+	for _, d := range diags {
+		if strings.Contains(d.Message, "unsupported usage_extract mode") {
+			t.Fatalf("did not expect usage_extract mode diagnostic, got: %+v", diags)
+		}
+	}
+}
+
+func TestSemanticDiagnosticsIgnoreDynamicFinishReasonMode(t *testing.T) {
+	text := "provider \"x\" {\n  defaults {\n    upstream_config {\n      base_url = \"https://example.com\";\n    }\n    metrics {\n      finish_reason_extract local_finish_reason_mode;\n    }\n  }\n}\n"
+	diags := collectDiagnostics("file:///tmp/x.conf", text)
+	for _, d := range diags {
+		if strings.Contains(d.Message, "unsupported finish_reason_extract mode") {
+			t.Fatalf("did not expect finish_reason_extract mode diagnostic, got: %+v", diags)
+		}
+	}
+}
+
 func TestSemanticDiagnosticsMultipleModeErrors(t *testing.T) {
 	text := "provider \"x\" {\n  defaults {\n    request { req_map bad_req_mode; }\n    response { resp_map bad_resp_mode; }\n    upstream_config { base_url = \"https://example.com\"; }\n  }\n}\n"
 	diags := collectDiagnostics("file:///tmp/x.conf", text)

@@ -51,6 +51,9 @@ func analyzeSemantic(uri, text string) []Diagnostic {
 		// Usually a transient edit-state mismatch, not a semantic DSL problem.
 		return nil
 	}
+	if shouldSuppressSemanticModeDiagnostic(msg) {
+		return nil
+	}
 	var issue *dslconfig.ValidationIssue
 	if errors.As(err, &issue) {
 		if line, col, ok := semanticDirectivePositionWithScope(text, issue.Directive, issue.Scope); ok {
@@ -535,4 +538,12 @@ func semanticDirectiveFromMessage(msg string) string {
 		return strings.TrimSpace(m[1])
 	}
 	return ""
+}
+
+func shouldSuppressSemanticModeDiagnostic(msg string) bool {
+	m := semanticUnsupportedModeRe.FindStringSubmatch(strings.ToLower(msg))
+	if len(m) != 2 {
+		return false
+	}
+	return dslspec.DirectiveHasDynamicModeRegistry(strings.TrimSpace(m[1]))
 }
