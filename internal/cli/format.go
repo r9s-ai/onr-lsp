@@ -17,7 +17,6 @@ type formatOptions struct {
 	write   bool
 }
 
-Update PR description to: 'Add documentation comments to constructor functions to clarify they return non-nil values.'
 func newFormatCmd(opts Options) *cobra.Command {
 	formatOpts := formatOptions{tabSize: 2}
 	cmd := &cobra.Command{
