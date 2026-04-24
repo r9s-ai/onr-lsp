@@ -25,6 +25,7 @@ type Server struct {
 	shuttingDown bool
 }
 
+// NewServer returns a non-nil LSP server.
 func NewServer(in io.Reader, out io.Writer, logger *log.Logger) *Server {
 	return &Server{
 		in:     bufio.NewReader(in),

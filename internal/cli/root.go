@@ -44,6 +44,7 @@ func normalizeOptions(opts Options) Options {
 	return opts
 }
 
+// newRootCmd returns a non-nil root command.
 func newRootCmd(opts Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:           "onr-lsp",
