@@ -18,6 +18,7 @@ type ServeRuntimeOptions struct {
 
 type ServeRunner func(opts ServeRuntimeOptions) error
 
+// newServeCmd returns a non-nil serve command.
 func newServeCmd(opts Options) *cobra.Command {
 	return &cobra.Command{
 		Use:   "serve",

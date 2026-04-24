@@ -17,6 +17,7 @@ type formatOptions struct {
 	write   bool
 }
 
+// newFormatCmd returns a non-nil format command.
 func newFormatCmd(opts Options) *cobra.Command {
 	formatOpts := formatOptions{tabSize: 2}
 	cmd := &cobra.Command{
