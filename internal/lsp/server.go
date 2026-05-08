@@ -567,10 +567,6 @@ func currentBlockStack(text string, pos Position) []string {
 	return stack
 }
 
-func isBlockKeyword(s string) bool {
-	return dslspec.IsBlockDirective(s)
-}
-
 func collectNamedModeBlocks(text, blockName string) []string {
 	toks := lex(text)
 	stack := make([]string, 0, 8)
