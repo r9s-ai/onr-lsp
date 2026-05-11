@@ -51,6 +51,8 @@ func main() {
 	for _, block := range dslspec.BlockDirectiveNames() {
 		keywordSet[block] = struct{}{}
 	}
+	// Keep generated grammar keyword alternatives alphabetically sorted so diffs
+	// stay stable and manually reviewed regex additions have a single order.
 	keywords := setToSortedSlice(keywordSet)
 
 	directiveSet := map[string]struct{}{}
@@ -69,6 +71,8 @@ func main() {
 		}
 	}
 
+	// Keep directive alternatives alphabetically sorted. Reviewers rely on this
+	// ordering in vscode/syntaxes/onr.tmLanguage.json when new directives are added.
 	directives := setToSortedSlice(directiveSet)
 	modeDirectives := setToSortedSlice(modeDirectiveSet)
 
@@ -179,6 +183,8 @@ func wordRegex(words []string) string {
 }
 
 func joinRegexAlternation(words []string) string {
+	// words must already be alphabetically sorted by setToSortedSlice before
+	// building the regex alternation.
 	escaped := make([]string, 0, len(words))
 	for _, w := range words {
 		escaped = append(escaped, regexpQuoteMeta(w))
