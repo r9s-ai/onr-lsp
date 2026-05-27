@@ -5,8 +5,8 @@ github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/r9s-ai/open-next-router/onr-core v1.9.0 h1:0ZdKEjfKROb7fSRgGyzq50B7ZBp8yVvBClGnhlbeh3Q=
-github.com/r9s-ai/open-next-router/onr-core v1.9.0/go.mod h1:mHegCqPL+wfiGajHZCEObNqbl7r0/OajZ14Nq4c8UFo=
+github.com/r9s-ai/open-next-router/onr-core v1.11.0 h1:QznX0hPRdhcs2vf3fHUeN5489dCSD1J7Wlzk1KWz3z0=
+github.com/r9s-ai/open-next-router/onr-core v1.11.0/go.mod h1:1fANJBkzK/7vVWqxTcfDHo0B4kvjP4C72/kBDY3L1vY=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/spf13/cobra v1.10.2 h1:DMTTonx5m65Ic0GOoRY2c16WCbHxOOw6xxezuLaBpcU=
 github.com/spf13/cobra v1.10.2/go.mod h1:7C1pvHqHw5A4vrJfjNwvOdzYu0Gml16OCs2GRiTUUS4=
