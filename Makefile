@@ -1,5 +1,5 @@
 .PHONY: help build run test fmt tidy clean hooks sync-onr-core-version \
-	vscode-install vscode-version-patch vscode-compile vscode-watch vscode-package vscode-release-check vscode-bundle-bins vscode-generate-syntax vscode-install-vsix
+	vscode-install vscode-version-patch vscode-compile vscode-watch vscode-package vscode-release-check vscode-bundle-bins vscode-generate-syntax vscode-install-vsix update-and-install
 
 BIN_DIR := bin
 LSP_BIN := $(BIN_DIR)/onr-lsp
@@ -9,11 +9,11 @@ ONR_CORE_MODULE := github.com/r9s-ai/open-next-router/onr-core
 VERSION ?= $(shell cd vscode >/dev/null 2>&1 && node -p "require('./package.json').version" 2>/dev/null || git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
-LDFLAGS := -s -w \
+LDFLAGS = -s -w \
 	-X main.Version=$(VERSION) \
 	-X main.Commit=$(COMMIT) \
 	-X main.BuildDate=$(BUILD_DATE)
-VSIX_NAME := $(shell cd vscode && node -p "require('./package.json').name + '-' + require('./package.json').version + '.vsix'")
+VSIX_NAME = $(shell cd vscode && node -p "require('./package.json').name + '-' + require('./package.json').version + '.vsix'")
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -91,3 +91,5 @@ vscode-release-check: vscode-install vscode-generate-syntax vscode-bundle-bins #
 	cd vscode && npm run compile
 	cd vscode && npm exec vsce ls --tree
 	cd vscode && npm run package
+
+update-and-install: sync-onr-core-version vscode-version-patch vscode-install-vsix
