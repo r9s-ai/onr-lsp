@@ -172,6 +172,20 @@ func TestCompleteMethodEnumValuesInModelsPhase(t *testing.T) {
 	}
 }
 
+func TestCompleteMetadataDirectives(t *testing.T) {
+	text := "provider \"x\" {\n  metadata {\n    provider_\n  }\n}\n"
+	items := complete(text, Position{Line: 2, Character: len("    provider_")})
+	if len(items) == 0 {
+		t.Fatalf("expected metadata directive completion")
+	}
+	for _, it := range items {
+		if it.Label == "provider_family" {
+			return
+		}
+	}
+	t.Fatalf("expected provider_family completion in metadata block, got: %+v", items)
+}
+
 func TestCompleteOAuthContentTypeEnumValuesInAuthPhase(t *testing.T) {
 	text := "provider \"x\" {\n  defaults { auth { oauth_content_type j } }\n}\n"
 	items := complete(text, Position{Line: 1, Character: len("  defaults { auth { oauth_content_type j")})

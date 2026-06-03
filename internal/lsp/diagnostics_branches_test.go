@@ -77,3 +77,15 @@ func TestDiagnostics_BalanceExpressionDirective_NoFalseUnknown(t *testing.T) {
 		}
 	}
 }
+
+func TestDiagnostics_MetadataBlock_NoFalseBlockDiagnostic(t *testing.T) {
+	text := "syntax \"next-router/0.1\";\n\nprovider \"azure\" {\n  metadata {\n    provider_family azure-openai;\n    signal_profile azure-openai;\n  }\n}\n"
+	diags := analyze(text)
+	for _, d := range diags {
+		if strings.Contains(d.Message, "metadata does not use") ||
+			strings.Contains(d.Message, "unknown directive in provider block: metadata") ||
+			strings.Contains(d.Message, "unknown directive in metadata block") {
+			t.Fatalf("unexpected metadata diagnostic: %+v", diags)
+		}
+	}
+}

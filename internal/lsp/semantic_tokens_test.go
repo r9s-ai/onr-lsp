@@ -29,6 +29,12 @@ func TestClassifyIdentifierType(t *testing.T) {
 	if got := classifyIdentifierType("models_mode", "top", true, false); got != semanticTypeKeyword {
 		t.Fatalf("top-level models_mode should be keyword, got %d", got)
 	}
+	if got := classifyIdentifierType("metadata", "provider", true, false); got != semanticTypeKeyword {
+		t.Fatalf("metadata in provider block should be keyword, got %d", got)
+	}
+	if got := classifyIdentifierType("provider_family", "metadata", true, false); got != semanticTypeProperty {
+		t.Fatalf("provider_family in metadata block should be property, got %d", got)
+	}
 	if got := classifyIdentifierType("unknown_token", "request", true, false); got != -1 {
 		t.Fatalf("unknown token should be untyped, got %d", got)
 	}

@@ -303,6 +303,7 @@ var blockChildren = map[string]map[string]struct{}{
 	"provider": {
 		"defaults": {},
 		"match":    {},
+		"metadata": {},
 	},
 	"defaults": {
 		"upstream_config": {},
