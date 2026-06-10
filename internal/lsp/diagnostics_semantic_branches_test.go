@@ -54,7 +54,7 @@ func TestDiagnostics_SkipBalancedBlockMissingRBrace(t *testing.T) {
 }
 
 func TestDiagnostics_AcceptsSingleQuotedStrings(t *testing.T) {
-	text := "syntax 'next-router/0.1';\nprovider 'gemini' {\n  defaults {\n    metrics {\n      usage_fact audio.input token path='$.usageMetadata.promptTokensDetails[?(@.modality==\"AUDIO\")].tokenCount';\n    }\n  }\n}\n"
+	text := "syntax 'next-router/0.1';\nprovider 'gemini' {\n  defaults {\n    metrics {\n      usage_fact input.audio token path='$.usageMetadata.promptTokensDetails[?(@.modality==\"AUDIO\")].tokenCount';\n    }\n  }\n}\n"
 	diags := analyze(text)
 	if len(diags) != 0 {
 		t.Fatalf("expected no diagnostics for single-quoted strings, got: %+v", diags)

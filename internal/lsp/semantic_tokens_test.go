@@ -64,7 +64,7 @@ func TestLexSemantic_CommentsAndNumbers(t *testing.T) {
 }
 
 func TestLexSemantic_SingleQuotedStrings(t *testing.T) {
-	toks := lexSemantic("provider 'gemini' {\n  metrics { usage_fact audio.input token path='$.usageMetadata.promptTokensDetails[?(@.modality==\"AUDIO\")].tokenCount'; }\n}\n")
+	toks := lexSemantic("provider 'gemini' {\n  metrics { usage_fact input.audio token path='$.usageMetadata.promptTokensDetails[?(@.modality==\"AUDIO\")].tokenCount'; }\n}\n")
 	foundString := false
 	for _, tok := range toks {
 		if tok.kind == semanticLexString && tok.text == "'gemini'" {
