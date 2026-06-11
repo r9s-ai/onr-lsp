@@ -177,11 +177,11 @@ func classifySemanticSpans(text string) []semanticSpan {
 			}
 			if statementStart && blockAllowsChildBlock(block, tok.text) {
 				pending = tok.text
-				lockedPending = blockDirectiveNeedsHeader(tok.text)
+				lockedPending = blockDirectiveNeedsHeader(block, tok.text)
 			}
 			if statementStart {
 				currentDirective = tok.text
-				modePending = len(dslspec.ModesByDirective(tok.text)) > 0
+				modePending = len(dslspec.ModesByDirectiveInBlock(tok.text, block)) > 0
 			}
 			prevSig = prevSigOther
 		default:

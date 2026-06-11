@@ -289,41 +289,7 @@ type directiveSpec struct {
 var (
 	topLevelDirectives    map[string]directiveSpec
 	directiveAllowedInMap map[string][]string
-	blockKeywordSet       map[string]struct{}
 )
-
-var blockChildren = map[string]map[string]struct{}{
-	"top": {
-		"provider":           {},
-		"usage_mode":         {},
-		"finish_reason_mode": {},
-		"models_mode":        {},
-		"balance_mode":       {},
-	},
-	"provider": {
-		"defaults": {},
-		"match":    {},
-		"metadata": {},
-	},
-	"defaults": {
-		"upstream_config": {},
-		"auth":            {},
-		"request":         {},
-		"response":        {},
-		"error":           {},
-		"metrics":         {},
-		"balance":         {},
-		"models":          {},
-	},
-	"match": {
-		"upstream": {},
-		"auth":     {},
-		"request":  {},
-		"response": {},
-		"error":    {},
-		"metrics":  {},
-	},
-}
 
 func init() {
 	initDirectiveSpecsFromMetadata()
@@ -350,15 +316,6 @@ func initDirectiveSpecsFromMetadata() {
 		directiveAllowedInMap[name] = append(directiveAllowedInMap[name], block)
 	}
 
-	blockKeywordSet = map[string]struct{}{
-		"provider": {},
-	}
-	for block := range blockChildren {
-		if block == "top" {
-			continue
-		}
-		blockKeywordSet[block] = struct{}{}
-	}
 	cache := map[string]map[string]directiveSpec{}
 	var buildBlockSpecs func(block string, visiting map[string]bool) map[string]directiveSpec
 	buildBlockSpecs = func(block string, visiting map[string]bool) map[string]directiveSpec {
@@ -377,7 +334,7 @@ func initDirectiveSpecsFromMetadata() {
 			spec := directiveSpec{name: name}
 			if blockAllowsChildBlock(block, name) {
 				spec.block = true
-				spec.parseHeaderUntilBrace = blockDirectiveNeedsHeader(name)
+				spec.parseHeaderUntilBrace = blockDirectiveNeedsHeader(block, name)
 				spec.sub = buildBlockSpecs(name, visiting)
 			}
 			specs[name] = spec
@@ -421,23 +378,11 @@ func allowedBlocksForDirective(d string) []string {
 }
 
 func blockAllowsChildBlock(parent, child string) bool {
-	p := normalizeMetaBlock(parent)
-	c := strings.TrimSpace(child)
-	children := blockChildren[p]
-	if len(children) == 0 {
-		return false
-	}
-	_, ok := children[c]
-	return ok
+	return dslspec.DirectiveIsBlockInBlock(child, parent)
 }
 
-func blockDirectiveNeedsHeader(name string) bool {
-	switch strings.TrimSpace(name) {
-	case "provider", "match", "usage_mode", "finish_reason_mode", "models_mode", "balance_mode":
-		return true
-	default:
-		return false
-	}
+func blockDirectiveNeedsHeader(parent, name string) bool {
+	return dslspec.DirectiveBlockHasHeaderInBlock(name, parent)
 }
 
 func lex(input string) []token {

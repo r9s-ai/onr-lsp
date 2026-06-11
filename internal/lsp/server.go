@@ -439,7 +439,7 @@ func complete(text string, pos Position) []CompletionItem {
 		}
 	}
 
-	dir, dirPrefix, ok := modeCompletionPrefix(prefix)
+	dir, dirPrefix, ok := modeCompletionPrefix(prefix, block)
 	if ok && directiveAllowedInPhase(dir, block) {
 		return completionItemsFromValues(modeListByDirective(text, block, dir), dirPrefix, dir+" mode", "Built-in or user-defined ONR mapping mode.", 3)
 	}
@@ -449,8 +449,8 @@ func complete(text string, pos Position) []CompletionItem {
 	return completionItemsFromValues(dirs, wordPrefix, "directive", "ONR DSL directive.", 14)
 }
 
-func modeCompletionPrefix(linePrefix string) (directive string, prefix string, ok bool) {
-	for _, dir := range dslspec.ModeDirectiveNames() {
+func modeCompletionPrefix(linePrefix, block string) (directive string, prefix string, ok bool) {
+	for _, dir := range dslspec.ModeDirectiveNamesInBlock(block) {
 		if pfx, ok := directiveCompletionPrefix(linePrefix, dir); ok {
 			return dir, pfx, true
 		}
@@ -477,8 +477,8 @@ func directiveCompletionPrefix(linePrefix, directive string) (string, bool) {
 }
 
 func modeListByDirective(text, block, directive string) []string {
-	values := append([]string(nil), dslspec.ModesByDirective(directive)...)
-	modeBlock := dslspec.DirectiveModeRegistryBlock(directive, block)
+	values := append([]string(nil), dslspec.ModesByDirectiveInBlock(directive, block)...)
+	modeBlock := dslspec.DirectiveModeRegistryBlockInBlock(directive, block)
 	if modeBlock == "" {
 		return values
 	}
@@ -542,7 +542,7 @@ func currentBlockStack(text string, pos Position) []string {
 		case tokIdent:
 			if isStatementStart(toks, i) && blockAllowsChildBlock(block, tok.text) {
 				pending = tok.text
-				lockedPending = blockDirectiveNeedsHeader(tok.text)
+				lockedPending = blockDirectiveNeedsHeader(block, tok.text)
 			}
 		case tokLBrace:
 			name := pending
@@ -596,7 +596,7 @@ func collectNamedModeBlocks(text, blockName string) []string {
 			}
 			if isStatementStart(toks, i) && blockAllowsChildBlock(block, tok.text) {
 				pending = tok.text
-				lockedPending = blockDirectiveNeedsHeader(tok.text)
+				lockedPending = blockDirectiveNeedsHeader(block, tok.text)
 			}
 		case tokLBrace:
 			name := pending

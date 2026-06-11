@@ -38,6 +38,34 @@ func TestDiagnostics_SkipStatementLBrace(t *testing.T) {
 	}
 }
 
+func TestDiagnostics_AcceptsAfterReqMapBlock(t *testing.T) {
+	text := "provider \"x\" { defaults { request { after_req_map { json_set \"$.x\" \"y\"; json_del_if_missing \"$.a\" \"$.b\"; } } } }"
+	diags := analyze(text)
+	for _, d := range diags {
+		if strings.Contains(d.Message, "after_req_map does not use '{ ... }'") {
+			t.Fatalf("did not expect after_req_map block diagnostic, got: %+v", diags)
+		}
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for after_req_map block, got: %+v", diags)
+	}
+}
+
+func TestDiagnostics_AfterReqMapRejectsNonJSONDirective(t *testing.T) {
+	text := "provider \"x\" { defaults { request { after_req_map { req_map openai_chat_to_openai_responses; } } } }"
+	diags := analyze(text)
+	found := false
+	for _, d := range diags {
+		if strings.Contains(d.Message, "directive req_map is not allowed in after_req_map block") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected req_map not allowed diagnostic in after_req_map, got: %+v", diags)
+	}
+}
+
 func TestDiagnostics_SkipBalancedBlockMissingRBrace(t *testing.T) {
 	text := "provider \"x\" {\n  defaults {\n    match api = \"chat.completions\" {\n      upstream {\n        set_path \"/v1\";\n"
 	diags := analyze(text)
@@ -137,6 +165,29 @@ func TestAnalyzeSemanticModes_IgnoreNonStatementStartAndMissingMode(t *testing.T
 		if strings.Contains(d.Message, "unsupported req_map mode") {
 			t.Fatalf("did not expect unsupported mode diagnostic here, got: %+v", diags)
 		}
+	}
+}
+
+func TestAnalyzeSemanticModes_UsesBlockContext(t *testing.T) {
+	text := "models_mode bad { models_mode openai; }\n"
+	diags := analyzeSemanticModes(text)
+	for _, d := range diags {
+		if strings.Contains(d.Message, "unsupported models_mode mode") {
+			t.Fatalf("did not expect top-level models_mode block name to be treated as a mode value, got: %+v", diags)
+		}
+	}
+
+	text = "provider \"x\" { defaults { request { req_map bad_req_mode; } } }"
+	diags = analyzeSemanticModes(text)
+	found := false
+	for _, d := range diags {
+		if strings.Contains(d.Message, `unsupported req_map mode "bad_req_mode"`) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected unsupported req_map mode diagnostic, got: %+v", diags)
 	}
 }
 

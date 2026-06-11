@@ -40,6 +40,40 @@ func TestClassifyIdentifierType(t *testing.T) {
 	}
 }
 
+func TestSemanticModePendingIsContextSensitive(t *testing.T) {
+	topBlock := `models_mode "shared" { models_mode openai; }`
+	spans := classifySemanticSpans(topBlock)
+	sharedCol := len(`models_mode `)
+	foundShared := false
+	for _, span := range spans {
+		if span.line == 0 && span.start == sharedCol {
+			foundShared = true
+			if span.typ == semanticTypeEnumMember {
+				t.Fatalf("top-level models_mode name should not be an enum member, got span: %+v", span)
+			}
+		}
+	}
+	if !foundShared {
+		t.Fatalf("expected semantic span for top-level models_mode name, got: %+v", spans)
+	}
+
+	modelsStmt := `provider "x" { defaults { models { models_mode openai; } } }`
+	spans = classifySemanticSpans(modelsStmt)
+	openaiCol := len(`provider "x" { defaults { models { models_mode `)
+	foundOpenAI := false
+	for _, span := range spans {
+		if span.line == 0 && span.start == openaiCol {
+			foundOpenAI = true
+			if span.typ != semanticTypeEnumMember {
+				t.Fatalf("models.models_mode value should be an enum member, got span: %+v", span)
+			}
+		}
+	}
+	if !foundOpenAI {
+		t.Fatalf("expected semantic span for models.models_mode value, got: %+v", spans)
+	}
+}
+
 func TestLexSemantic_CommentsAndNumbers(t *testing.T) {
 	toks := lexSemantic("# c1\n// c2\noauth_timeout_ms 1500;\n")
 	if len(toks) == 0 {

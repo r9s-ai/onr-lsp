@@ -203,3 +203,24 @@ func TestCurrentBlockStack_Branches(t *testing.T) {
 		t.Fatalf("expected unknown stack for bare '{', got: %+v", unknown)
 	}
 }
+
+func TestBlockShapeFromDSLSpec(t *testing.T) {
+	if !blockAllowsChildBlock("top", "models_mode") {
+		t.Fatalf("expected top-level models_mode to be a block")
+	}
+	if !blockDirectiveNeedsHeader("top", "models_mode") {
+		t.Fatalf("expected top-level models_mode block to consume a header")
+	}
+	if blockAllowsChildBlock("models", "models_mode") {
+		t.Fatalf("did not expect models.models_mode to be a block")
+	}
+	if blockDirectiveNeedsHeader("models", "models_mode") {
+		t.Fatalf("did not expect models.models_mode to consume a block header")
+	}
+	if !blockAllowsChildBlock("request", "after_req_map") {
+		t.Fatalf("expected request.after_req_map to be a block")
+	}
+	if blockDirectiveNeedsHeader("request", "after_req_map") {
+		t.Fatalf("did not expect request.after_req_map to consume a header")
+	}
+}

@@ -75,33 +75,65 @@ func analyzeSemanticModes(text string) []Diagnostic {
 		return nil
 	}
 	out := make([]Diagnostic, 0, 8)
+	stack := make([]string, 0, 8)
+	pending := ""
+	lockedPending := false
 	for i := 0; i < len(toks); i++ {
 		tok := toks[i]
-		if tok.kind != tokIdent {
+		block := "top"
+		if len(stack) > 0 {
+			block = stack[len(stack)-1]
+		}
+
+		switch tok.kind {
+		case tokIdent:
+			if !isStatementStart(toks, i) {
+				continue
+			}
+			allowed := allowedModesForDirectiveInBlock(tok.text, block)
+			if len(allowed) == 0 {
+				if blockAllowsChildBlock(block, tok.text) {
+					pending = tok.text
+					lockedPending = blockDirectiveNeedsHeader(block, tok.text)
+				}
+				continue
+			}
+			if dslspec.DirectiveHasDynamicModeRegistryInBlock(tok.text, block) {
+				continue
+			}
+			modeTok, ok := nextModeToken(toks, i+1)
+			if !ok {
+				continue
+			}
+			mode := normalizeModeToken(modeTok)
+			if mode == "" {
+				continue
+			}
+			if _, ok := allowed[strings.ToLower(mode)]; ok {
+				continue
+			}
+			out = append(out, newDiagnostic(modeTok.line, modeTok.col, fmt.Sprintf("unsupported %s mode %q", tok.text, mode)))
+		case tokLBrace:
+			name := pending
+			if name == "" {
+				name = "unknown"
+			}
+			stack = append(stack, name)
+			pending = ""
+			lockedPending = false
+		case tokRBrace:
+			if len(stack) > 0 {
+				stack = stack[:len(stack)-1]
+			}
+			pending = ""
+			lockedPending = false
+		case tokSemicolon:
+			if !lockedPending {
+				pending = ""
+			}
+		default:
 			continue
 		}
-		if !isStatementStart(toks, i) {
-			continue
-		}
-		allowed := allowedModesForDirective(tok.text)
-		if len(allowed) == 0 {
-			continue
-		}
-		if dslspec.DirectiveHasDynamicModeRegistry(tok.text) {
-			continue
-		}
-		modeTok, ok := nextModeToken(toks, i+1)
-		if !ok {
-			continue
-		}
-		mode := normalizeModeToken(modeTok)
-		if mode == "" {
-			continue
-		}
-		if _, ok := allowed[strings.ToLower(mode)]; ok {
-			continue
-		}
-		out = append(out, newDiagnostic(modeTok.line, modeTok.col, fmt.Sprintf("unsupported %s mode %q", tok.text, mode)))
 	}
 	return out
 }
@@ -138,8 +170,8 @@ func normalizeModeToken(tok token) string {
 	return strings.TrimSpace(tok.text)
 }
 
-func allowedModesForDirective(d string) map[string]struct{} {
-	return setFromSlice(dslspec.ModesByDirective(d))
+func allowedModesForDirectiveInBlock(d, block string) map[string]struct{} {
+	return setFromSlice(dslspec.ModesByDirectiveInBlock(d, block))
 }
 
 func setFromSlice(v []string) map[string]struct{} {
@@ -471,7 +503,7 @@ func semanticDirectivePositionWithScope(text, directive, scope string) (int, int
 		case tokIdent:
 			if isStatementStart(toks, i) && blockAllowsChildBlock(block, tok.text) {
 				pending = tok.text
-				lockedPending = blockDirectiveNeedsHeader(tok.text)
+				lockedPending = blockDirectiveNeedsHeader(block, tok.text)
 			}
 			if tok.text == directive && isStatementStart(toks, i) {
 				if blockHint == "" || block == blockHint {

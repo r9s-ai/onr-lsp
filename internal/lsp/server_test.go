@@ -68,6 +68,30 @@ func TestCompleteReqMapNotInResponsePhase(t *testing.T) {
 	}
 }
 
+func TestCompleteAfterReqMapJSONOps(t *testing.T) {
+	text := "provider \"x\" {\n  defaults { request { after_req_map { js } } }\n}\n"
+	items := complete(text, Position{Line: 1, Character: len("  defaults { request { after_req_map { js")})
+	if len(items) == 0 {
+		t.Fatalf("expected completion items, got none")
+	}
+	foundJSONSet := false
+	foundReqMap := false
+	for _, it := range items {
+		if it.Label == "json_set" {
+			foundJSONSet = true
+		}
+		if it.Label == "req_map" {
+			foundReqMap = true
+		}
+	}
+	if !foundJSONSet {
+		t.Fatalf("expected json_set completion in after_req_map, got: %+v", items)
+	}
+	if foundReqMap {
+		t.Fatalf("did not expect req_map completion in after_req_map, got: %+v", items)
+	}
+}
+
 func TestCompleteErrorMapModes(t *testing.T) {
 	text := "provider \"x\" {\n  defaults { error { error_map o } }\n}\n"
 	items := complete(text, Position{Line: 1, Character: len("  defaults { error { error_map o")})
@@ -133,6 +157,16 @@ func TestCompleteModelsModeInModelsPhase(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected gemini mode in models_mode completion, got: %+v", items)
+	}
+}
+
+func TestCompleteTopLevelModeBlockDoesNotUseModeValues(t *testing.T) {
+	text := "models_mode o"
+	items := complete(text, Position{Line: 0, Character: len("models_mode o")})
+	for _, it := range items {
+		if it.Label == "openai" || it.Label == "gemini" || it.Label == "custom" {
+			t.Fatalf("did not expect statement mode completion for top-level models_mode block, got: %+v", items)
+		}
 	}
 }
 
