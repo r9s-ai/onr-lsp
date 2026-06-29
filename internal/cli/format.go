@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/r9s-ai/onr-lsp/internal/lsp"
+	"github.com/r9s-ai/open-next-router/onr-core/pkg/dsllang"
 	"github.com/spf13/cobra"
 )
 
@@ -41,7 +41,7 @@ func newFormatCmd(opts Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			formatted := lsp.FormatText(string(src), lsp.FormatOptions{
+			formatted := dsllang.FormatText(string(src), dsllang.FormatOptions{
 				TabSize:      formatOpts.tabSize,
 				InsertSpaces: !formatOpts.useTabs,
 			})

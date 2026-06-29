@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/r9s-ai/open-next-router/onr-core/pkg/dsllang"
 	"github.com/r9s-ai/open-next-router/onr-core/pkg/dslspec"
 )
 
@@ -70,6 +71,15 @@ type serverCapabilities struct {
 	SemanticTokensProvider *semanticTokensOptions `json:"semanticTokensProvider,omitempty"`
 }
 
+type semanticTokensOptions struct {
+	Legend dsllang.SemanticTokenLegend `json:"legend"`
+	Full   bool                        `json:"full"`
+}
+
+type semanticTokensParams struct {
+	TextDocument textDocumentIdentifier `json:"textDocument"`
+}
+
 type completionProvider struct {
 	ResolveProvider   bool     `json:"resolveProvider"`
 	TriggerCharacters []string `json:"triggerCharacters,omitempty"`
@@ -111,32 +121,18 @@ type hoverParams struct {
 	Position     Position               `json:"position"`
 }
 
-type formattingOptions struct {
-	TabSize      int  `json:"tabSize"`
-	InsertSpaces bool `json:"insertSpaces"`
-}
+type formattingOptions = dsllang.FormatOptions
 
 type formattingParams struct {
 	TextDocument textDocumentIdentifier `json:"textDocument"`
 	Options      formattingOptions      `json:"options"`
 }
 
-type Position struct {
-	Line      int `json:"line"`
-	Character int `json:"character"`
-}
+type Position = dsllang.Position
 
-type Range struct {
-	Start Position `json:"start"`
-	End   Position `json:"end"`
-}
+type Range = dsllang.Range
 
-type Diagnostic struct {
-	Range    Range  `json:"range"`
-	Severity int    `json:"severity,omitempty"`
-	Source   string `json:"source,omitempty"`
-	Message  string `json:"message"`
-}
+type Diagnostic = dsllang.Diagnostic
 
 type MarkupContent struct {
 	Kind  string `json:"kind"`
@@ -243,11 +239,8 @@ func (s *Server) handleInitialize(id *json.RawMessage) error {
 			HoverProvider:      true,
 			DocumentFormatting: true,
 			SemanticTokensProvider: &semanticTokensOptions{
-				Legend: semanticTokensLegend{
-					TokenTypes:     semanticTokenLegendTypes,
-					TokenModifiers: []string{},
-				},
-				Full: true,
+				Legend: dsllang.CollectSemanticTokenLegend(),
+				Full:   true,
 			},
 		},
 		ServerInfo: serverInfo{
@@ -299,7 +292,7 @@ func (s *Server) handleSemanticTokensFull(id *json.RawMessage, params json.RawMe
 		return s.replyError(id, -32602, "invalid params for semantic tokens")
 	}
 	text := s.docs[p.TextDocument.URI]
-	return s.reply(id, semanticTokensFull(text))
+	return s.reply(id, dsllang.CollectSemanticTokens(text))
 }
 
 func (s *Server) handleFormatting(id *json.RawMessage, params json.RawMessage) error {
@@ -308,7 +301,7 @@ func (s *Server) handleFormatting(id *json.RawMessage, params json.RawMessage) e
 		return s.replyError(id, -32602, "invalid params for formatting")
 	}
 	text := s.docs[p.TextDocument.URI]
-	formatted := formatDocument(text, p.Options)
+	formatted := dsllang.FormatText(text, p.Options)
 	if formatted == text {
 		return s.reply(id, []TextEdit{})
 	}
@@ -316,7 +309,7 @@ func (s *Server) handleFormatting(id *json.RawMessage, params json.RawMessage) e
 		{
 			Range: Range{
 				Start: Position{Line: 0, Character: 0},
-				End:   endPosition(text),
+				End:   dsllang.EndPosition(text),
 			},
 			NewText: formatted,
 		},
@@ -329,7 +322,7 @@ func (s *Server) publishDiagnostics(uri string) error {
 	if !ok {
 		return nil
 	}
-	diags := collectDiagnostics(uri, text)
+	diags := dsllang.CollectDiagnostics(uri, text)
 	params := publishDiagnosticsParams{
 		URI:         uri,
 		Diagnostics: diags,
@@ -516,141 +509,19 @@ func enumArgCompletionPrefix(linePrefix, block string) (directive string, prefix
 }
 
 func currentCompletionBlock(text string, pos Position) string {
-	stack := currentBlockStack(text, pos)
-	if len(stack) == 0 {
-		return "top"
-	}
-	return stack[len(stack)-1]
+	return dsllang.CurrentBlock(text, pos)
 }
 
 func currentBlockStack(text string, pos Position) []string {
-	toks := lex(text)
-	stack := make([]string, 0, 8)
-	pending := ""
-	lockedPending := false
-
-	for i := 0; i < len(toks); i++ {
-		tok := toks[i]
-		if tokenAfterPosition(tok, pos) {
-			break
-		}
-		block := "top"
-		if len(stack) > 0 {
-			block = stack[len(stack)-1]
-		}
-		switch tok.kind {
-		case tokIdent:
-			if isStatementStart(toks, i) && blockAllowsChildBlock(block, tok.text) {
-				pending = tok.text
-				lockedPending = blockDirectiveNeedsHeader(block, tok.text)
-			}
-		case tokLBrace:
-			name := pending
-			if name == "" {
-				name = "unknown"
-			}
-			stack = append(stack, name)
-			pending = ""
-			lockedPending = false
-		case tokRBrace:
-			if len(stack) > 0 {
-				stack = stack[:len(stack)-1]
-			}
-			pending = ""
-			lockedPending = false
-		case tokSemicolon:
-			if !lockedPending {
-				pending = ""
-			}
-		}
-	}
-	return stack
+	return dsllang.CurrentBlockStack(text, pos)
 }
 
 func collectNamedModeBlocks(text, blockName string) []string {
-	toks := lex(text)
-	stack := make([]string, 0, 8)
-	pending := ""
-	lockedPending := false
-	seen := map[string]struct{}{}
-	out := make([]string, 0, 8)
-
-	for i := 0; i < len(toks); i++ {
-		tok := toks[i]
-		block := "top"
-		if len(stack) > 0 {
-			block = stack[len(stack)-1]
-		}
-		switch tok.kind {
-		case tokIdent:
-			if isStatementStart(toks, i) && block == "top" && tok.text == blockName {
-				if name, ok := nextModeToken(toks, i+1); ok {
-					v := normalizeModeToken(name)
-					if v != "" {
-						if _, exists := seen[v]; !exists {
-							seen[v] = struct{}{}
-							out = append(out, v)
-						}
-					}
-				}
-			}
-			if isStatementStart(toks, i) && blockAllowsChildBlock(block, tok.text) {
-				pending = tok.text
-				lockedPending = blockDirectiveNeedsHeader(block, tok.text)
-			}
-		case tokLBrace:
-			name := pending
-			if name == "" {
-				name = "unknown"
-			}
-			stack = append(stack, name)
-			pending = ""
-			lockedPending = false
-		case tokRBrace:
-			if len(stack) > 0 {
-				stack = stack[:len(stack)-1]
-			}
-			pending = ""
-			lockedPending = false
-		case tokSemicolon:
-			if !lockedPending {
-				pending = ""
-			}
-		}
-	}
-
-	return out
+	return dsllang.CollectNamedModeBlocks(text, blockName)
 }
 
 func dedupeSortedStrings(values []string) []string {
-	if len(values) == 0 {
-		return nil
-	}
-	seen := map[string]struct{}{}
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		v := strings.TrimSpace(value)
-		if v == "" {
-			continue
-		}
-		if _, ok := seen[v]; ok {
-			continue
-		}
-		seen[v] = struct{}{}
-		out = append(out, v)
-	}
-	sort.Strings(out)
-	return out
-}
-
-func tokenAfterPosition(tok token, pos Position) bool {
-	if tok.line > pos.Line {
-		return true
-	}
-	if tok.line < pos.Line {
-		return false
-	}
-	return tok.col > pos.Character
+	return dsllang.DedupeSortedStrings(values)
 }
 
 func currentWordPrefix(linePrefix string) string {
