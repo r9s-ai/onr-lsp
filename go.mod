@@ -3,7 +3,7 @@ module github.com/r9s-ai/onr-lsp
 go 1.25.10
 
 require (
-	github.com/r9s-ai/open-next-router/onr-core v1.15.3
+	github.com/r9s-ai/open-next-router/onr-core v1.15.4
 	github.com/spf13/cobra v1.10.2
 )
 
