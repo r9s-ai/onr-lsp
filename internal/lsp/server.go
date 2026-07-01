@@ -267,23 +267,11 @@ func (s *Server) handleHover(id *json.RawMessage, params json.RawMessage) error 
 		return s.replyError(id, -32602, "invalid params for hover")
 	}
 	text := s.docs[p.TextDocument.URI]
-	word, rng := wordAt(text, p.Position)
-	if word == "" {
-		return s.reply(id, nil)
-	}
-	block := currentCompletionBlock(text, p.Position)
-	doc, ok := dslspec.DirectiveHoverInBlock(word, block)
+	hover, ok := dsllang.CollectHover(text, p.Position)
 	if !ok {
 		return s.reply(id, nil)
 	}
-	h := Hover{
-		Contents: MarkupContent{
-			Kind:  "markdown",
-			Value: doc,
-		},
-		Range: &rng,
-	}
-	return s.reply(id, h)
+	return s.reply(id, hover)
 }
 
 func (s *Server) handleSemanticTokensFull(id *json.RawMessage, params json.RawMessage) error {
