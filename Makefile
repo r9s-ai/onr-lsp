@@ -14,6 +14,12 @@ LDFLAGS = -s -w \
 	-X main.Commit=$(COMMIT) \
 	-X main.BuildDate=$(BUILD_DATE)
 VSIX_NAME = $(shell cd vscode && node -p "require('./package.json').name + '-' + require('./package.json').version + '.vsix'")
+VSCODE_BUNDLE_GOOS ?= $(shell $(GO) env GOOS)
+VSCODE_BUNDLE_GOARCH ?= $(shell $(GO) env GOARCH)
+VSCODE_BUNDLE_PLATFORM = $(if $(filter windows,$(VSCODE_BUNDLE_GOOS)),win32,$(VSCODE_BUNDLE_GOOS))
+VSCODE_BUNDLE_ARCH = $(if $(filter amd64,$(VSCODE_BUNDLE_GOARCH)),x64,$(VSCODE_BUNDLE_GOARCH))
+VSCODE_BUNDLE_DIR = vscode/bin/$(VSCODE_BUNDLE_PLATFORM)-$(VSCODE_BUNDLE_ARCH)
+VSCODE_BUNDLE_EXE = $(if $(filter windows,$(VSCODE_BUNDLE_GOOS)),onr-lsp.exe,onr-lsp)
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -71,15 +77,10 @@ vscode-compile: vscode-install vscode-generate-syntax ## Compile VSCode client e
 vscode-watch: ## Watch-compile VSCode client extension
 	cd vscode && npm run watch
 
-vscode-bundle-bins: ## Build bundled onr-lsp binaries for VSCode extension
+vscode-bundle-bins: ## Build bundled onr-lsp binary for the current system
 	rm -rf vscode/bin
-	mkdir -p vscode/bin/linux-x64 vscode/bin/linux-arm64 vscode/bin/darwin-x64 vscode/bin/darwin-arm64 vscode/bin/win32-x64 vscode/bin/win32-arm64
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o vscode/bin/linux-x64/onr-lsp ./cmd/onr-lsp
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "$(LDFLAGS)" -o vscode/bin/linux-arm64/onr-lsp ./cmd/onr-lsp
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o vscode/bin/darwin-x64/onr-lsp ./cmd/onr-lsp
-	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "$(LDFLAGS)" -o vscode/bin/darwin-arm64/onr-lsp ./cmd/onr-lsp
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o vscode/bin/win32-x64/onr-lsp.exe ./cmd/onr-lsp
-	CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -trimpath -ldflags "$(LDFLAGS)" -o vscode/bin/win32-arm64/onr-lsp.exe ./cmd/onr-lsp
+	mkdir -p $(VSCODE_BUNDLE_DIR)
+	CGO_ENABLED=0 GOOS=$(VSCODE_BUNDLE_GOOS) GOARCH=$(VSCODE_BUNDLE_GOARCH) $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o $(VSCODE_BUNDLE_DIR)/$(VSCODE_BUNDLE_EXE) ./cmd/onr-lsp
 
 vscode-package: vscode-compile vscode-bundle-bins ## Package VSCode client extension (.vsix)
 	cd vscode && npm run package
