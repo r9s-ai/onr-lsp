@@ -402,7 +402,7 @@ func TestCompleteUsageExtractWithLocalUsageMode(t *testing.T) {
 
 func TestHoverDocs(t *testing.T) {
 	text := "provider \"x\" { response { sse_parse anthropic_to_openai_chunks; } }"
-	word, _ := wordAt(text, Position{Line: 0, Character: 28})
+	word := wordAt(text, Position{Line: 0, Character: 28})
 	if word != "sse_parse" {
 		t.Fatalf("expected word sse_parse, got %q", word)
 	}
@@ -413,7 +413,7 @@ func TestHoverDocs(t *testing.T) {
 
 func TestHoverDocsForUsageExtract(t *testing.T) {
 	text := "provider \"x\" { metrics { usage_extract custom; } }"
-	word, _ := wordAt(text, Position{Line: 0, Character: 31})
+	word := wordAt(text, Position{Line: 0, Character: 31})
 	if word != "usage_extract" {
 		t.Fatalf("expected word usage_extract, got %q", word)
 	}

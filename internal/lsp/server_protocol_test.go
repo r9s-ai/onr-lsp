@@ -51,7 +51,7 @@ func TestRun_InitializeShutdownExit(t *testing.T) {
 
 func TestHandle_DidOpenPublishesDiagnostics(t *testing.T) {
 	var out bytes.Buffer
-	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))
+	s := NewServer(stringsReader(), &out, log.New(io.Discard, "", 0))
 
 	params, err := json.Marshal(didOpenParams{
 		TextDocument: textDocumentItem{
@@ -81,7 +81,7 @@ func TestHandle_DidOpenPublishesDiagnostics(t *testing.T) {
 
 func TestHandle_DidOpenIncludeTopLevelHasNoUnknownDirectiveDiagnostic(t *testing.T) {
 	var out bytes.Buffer
-	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))
+	s := NewServer(stringsReader(), &out, log.New(io.Discard, "", 0))
 
 	params, err := json.Marshal(didOpenParams{
 		TextDocument: textDocumentItem{
@@ -122,7 +122,7 @@ func TestHandle_DidOpenIncludeTopLevelHasNoUnknownDirectiveDiagnostic(t *testing
 
 func TestHandle_InvalidHoverParamsReplyError(t *testing.T) {
 	var out bytes.Buffer
-	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))
+	s := NewServer(stringsReader(), &out, log.New(io.Discard, "", 0))
 
 	rawID := json.RawMessage("7")
 	if err := s.handle(inboundMessage{
@@ -145,7 +145,7 @@ func TestHandle_InvalidHoverParamsReplyError(t *testing.T) {
 
 func TestHandle_CompletionReturnsItems(t *testing.T) {
 	var out bytes.Buffer
-	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))
+	s := NewServer(stringsReader(), &out, log.New(io.Discard, "", 0))
 	uri := "file:///tmp/c.conf"
 	s.docs[uri] = "provider \"x\" {\n  defaults { request { req_map o } }\n}\n"
 
@@ -181,7 +181,7 @@ func TestHandle_CompletionReturnsItems(t *testing.T) {
 
 func TestHandle_InvalidCompletionParamsReplyError(t *testing.T) {
 	var out bytes.Buffer
-	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))
+	s := NewServer(stringsReader(), &out, log.New(io.Discard, "", 0))
 	rawID := json.RawMessage("9")
 	if err := s.handle(inboundMessage{
 		JSONRPC: "2.0",
@@ -203,7 +203,7 @@ func TestHandle_InvalidCompletionParamsReplyError(t *testing.T) {
 
 func TestHandle_InitializeIncludesSemanticTokensCapability(t *testing.T) {
 	var out bytes.Buffer
-	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))
+	s := NewServer(stringsReader(), &out, log.New(io.Discard, "", 0))
 
 	rawID := json.RawMessage("12")
 	if err := s.handle(inboundMessage{
@@ -241,7 +241,7 @@ func TestHandle_InitializeUsesServerVersion(t *testing.T) {
 	t.Cleanup(func() { ServerVersion = old })
 
 	var out bytes.Buffer
-	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))
+	s := NewServer(stringsReader(), &out, log.New(io.Discard, "", 0))
 
 	rawID := json.RawMessage("99")
 	if err := s.handle(inboundMessage{
@@ -272,7 +272,7 @@ func TestHandle_InitializeUsesServerVersion(t *testing.T) {
 
 func TestHandle_SemanticTokensFullReturnsData(t *testing.T) {
 	var out bytes.Buffer
-	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))
+	s := NewServer(stringsReader(), &out, log.New(io.Discard, "", 0))
 	uri := "file:///tmp/tokens.conf"
 	s.docs[uri] = "provider \"openai\" { defaults { request { req_map openai_chat_to_openai_responses; } } }"
 
@@ -314,7 +314,7 @@ func TestHandle_SemanticTokensFullReturnsData(t *testing.T) {
 
 func TestHandle_InvalidSemanticTokensParamsReplyError(t *testing.T) {
 	var out bytes.Buffer
-	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))
+	s := NewServer(stringsReader(), &out, log.New(io.Discard, "", 0))
 	rawID := json.RawMessage("14")
 	if err := s.handle(inboundMessage{
 		JSONRPC: "2.0",
@@ -336,7 +336,7 @@ func TestHandle_InvalidSemanticTokensParamsReplyError(t *testing.T) {
 
 func TestHandle_FormattingReturnsTextEdits(t *testing.T) {
 	var out bytes.Buffer
-	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))
+	s := NewServer(stringsReader(), &out, log.New(io.Discard, "", 0))
 	uri := "file:///tmp/fmt.conf"
 	s.docs[uri] = "provider \"x\" {\ndefaults {\nrequest {\nreq_map openai_chat_to_openai_responses;\n}\n}\n}\n"
 
@@ -380,7 +380,7 @@ func TestHandle_FormattingReturnsTextEdits(t *testing.T) {
 
 func TestHandle_FormattingNoChangesReturnsEmptyEdits(t *testing.T) {
 	var out bytes.Buffer
-	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))
+	s := NewServer(stringsReader(), &out, log.New(io.Discard, "", 0))
 	uri := "file:///tmp/fmt-ok.conf"
 	s.docs[uri] = "provider \"x\" {\n  defaults {\n    request {\n      req_map openai_chat_to_openai_responses;\n    }\n  }\n}\n"
 
@@ -420,7 +420,7 @@ func TestHandle_FormattingNoChangesReturnsEmptyEdits(t *testing.T) {
 
 func TestHandle_InvalidFormattingParamsReplyError(t *testing.T) {
 	var out bytes.Buffer
-	s := NewServer(stringsReader(""), &out, log.New(io.Discard, "", 0))
+	s := NewServer(stringsReader(), &out, log.New(io.Discard, "", 0))
 	rawID := json.RawMessage("17")
 	if err := s.handle(inboundMessage{
 		JSONRPC: "2.0",
@@ -467,4 +467,4 @@ func readAllLSPMessages(t *testing.T, raw []byte) []map[string]any {
 	return out
 }
 
-func stringsReader(s string) *bytes.Reader { return bytes.NewReader([]byte(s)) }
+func stringsReader() *bytes.Reader { return bytes.NewReader(nil) }

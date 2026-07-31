@@ -500,10 +500,6 @@ func currentCompletionBlock(text string, pos Position) string {
 	return dsllang.CurrentBlock(text, pos)
 }
 
-func currentBlockStack(text string, pos Position) []string {
-	return dsllang.CurrentBlockStack(text, pos)
-}
-
 func collectNamedModeBlocks(text, blockName string) []string {
 	return dsllang.CollectNamedModeBlocks(text, blockName)
 }
@@ -547,10 +543,10 @@ func directiveListByBlock(block string) []string {
 	return dslspec.DirectivesByBlock(block)
 }
 
-func wordAt(text string, pos Position) (string, Range) {
+func wordAt(text string, pos Position) string {
 	line := lineAt(text, pos.Line)
 	if line == "" {
-		return "", Range{}
+		return ""
 	}
 	ch := pos.Character
 	if ch < 0 {
@@ -568,12 +564,9 @@ func wordAt(text string, pos Position) (string, Range) {
 		right++
 	}
 	if left == right {
-		return "", Range{}
+		return ""
 	}
-	return line[left:right], Range{
-		Start: Position{Line: pos.Line, Character: left},
-		End:   Position{Line: pos.Line, Character: right},
-	}
+	return line[left:right]
 }
 
 func isWordChar(b byte) bool {
