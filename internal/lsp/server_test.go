@@ -292,6 +292,42 @@ func TestCompleteFilterHeaderValuesInRequestBlock(t *testing.T) {
 	}
 }
 
+func TestCompleteKeepHeaderValuesInRequestBlock(t *testing.T) {
+	text := "provider \"x\" {\n  defaults { request { k } }\n}\n"
+	items := complete(text, Position{Line: 1, Character: len("  defaults { request { k")})
+	if len(items) == 0 {
+		t.Fatalf("expected directive completion items, got none")
+	}
+	found := false
+	for _, it := range items {
+		if it.Label == "keep_header_values" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected keep_header_values in request block completion, got: %+v", items)
+	}
+}
+
+func TestCompleteJSONKeepValuesInRequestBlock(t *testing.T) {
+	text := "provider \"x\" {\n  defaults { request { json_k } }\n}\n"
+	items := complete(text, Position{Line: 1, Character: len("  defaults { request { json_k")})
+	if len(items) == 0 {
+		t.Fatalf("expected directive completion items, got none")
+	}
+	found := false
+	for _, it := range items {
+		if it.Label == "json_keep_values" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected json_keep_values in request block completion, got: %+v", items)
+	}
+}
+
 func TestCompleteDirectiveTopLevel(t *testing.T) {
 	text := "s"
 	items := complete(text, Position{Line: 0, Character: 1})
@@ -366,7 +402,7 @@ func TestCompleteUsageExtractWithLocalUsageMode(t *testing.T) {
 
 func TestHoverDocs(t *testing.T) {
 	text := "provider \"x\" { response { sse_parse anthropic_to_openai_chunks; } }"
-	word, _ := wordAt(text, Position{Line: 0, Character: 28})
+	word := wordAt(text, Position{Line: 0, Character: 28})
 	if word != "sse_parse" {
 		t.Fatalf("expected word sse_parse, got %q", word)
 	}
@@ -377,7 +413,7 @@ func TestHoverDocs(t *testing.T) {
 
 func TestHoverDocsForUsageExtract(t *testing.T) {
 	text := "provider \"x\" { metrics { usage_extract custom; } }"
-	word, _ := wordAt(text, Position{Line: 0, Character: 31})
+	word := wordAt(text, Position{Line: 0, Character: 31})
 	if word != "usage_extract" {
 		t.Fatalf("expected word usage_extract, got %q", word)
 	}
