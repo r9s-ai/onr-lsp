@@ -2,7 +2,6 @@ package lsp
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -401,7 +400,7 @@ func writeMessage(w io.Writer, payload interface{}) error {
 	if _, err := io.WriteString(w, header); err != nil {
 		return err
 	}
-	_, err = io.Copy(w, bytes.NewReader(body))
+	_, err = w.Write(body)
 	return err
 }
 
