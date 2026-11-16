@@ -1,6 +1,6 @@
 module github.com/r9s-ai/onr-lsp
 
-go 1.26.10
+go 1.26.11
 
 require (
 	github.com/r9s-ai/open-next-router/onr-core v1.16.5
